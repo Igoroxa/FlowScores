@@ -57,7 +57,7 @@ class _PiecePageState extends State<PiecePage> {
       // Calculate interval in milliseconds for the given BPM
       int intervalMs = (60000 / _bpm).floor();
       _metronomeTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
-        _audioPlayer.play(AssetSource('click.wav.mp3'));  // play tick sound:contentReference[oaicite:7]{index=7}
+        _audioPlayer.play(AssetSource('click.MP3'));  // play tick sound:contentReference[oaicite:7]{index=7}
       });
       setState(() {
         _isPlayingMetronome = true;
@@ -150,7 +150,7 @@ class _PiecePageState extends State<PiecePage> {
                             } else {
                               int intervalMs = (60000 / value).floor();
                               _metronomeTimer = Timer.periodic(Duration(milliseconds: intervalMs), (timer) {
-                                _audioPlayer.play(AssetSource('click.wav.mp3'));
+                                _audioPlayer.play(AssetSource('click.MP3'));
                               });
                             }
                           }
