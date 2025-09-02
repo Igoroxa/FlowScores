@@ -11,6 +11,7 @@ class Piece {
   PieceType type;
   String? pdfPath;
   List<String>? imagePaths;
+  String? videoPath;  // new field for performance video file path
 
   Piece({
     required this.name,
@@ -20,7 +21,6 @@ class Piece {
     required this.type,
     this.pdfPath,
     this.imagePaths,
+    this.videoPath,
   });
-
-  // (Optional) You could add serialization methods here if saving/loading to storage.
 }

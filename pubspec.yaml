@@ -10,18 +10,16 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-
-  # File import / camera
+  # audio + pdf viewing + file pickers
+  flutter_cached_pdfview: ^0.4.2
   file_picker: ^8.0.3
-  image_picker: ^1.0.7
-
-  # Viewers
-  flutter_cached_pdfview: ^0.4.3
-  photo_view: ^0.15.0
-
-  # Metronome (player pool approach)
+  image_picker: ^1.1.2
+  # NEW: use native_pdf_renderer instead of pdf_render
   audioplayers: ^6.0.0
+  video_player: ^2.10.0    # new dependency for video playback
+  # pdf_render: ^1.4.12     # temporarily disabled due to compatibility issues
+  # syncfusion_flutter_pdfviewer: ^24.1.41  # alternative PDF viewer - also has compatibility issues
+  # photo_view: ^0.14.0   # temporarily disabled due to dependency issues
 
 dev_dependencies:
   flutter_test:

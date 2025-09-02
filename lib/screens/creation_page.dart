@@ -1,18 +1,19 @@
 // lib/screens/creation_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import '../models/piece.dart';
 
 class CreationPage extends StatefulWidget {
-  final Piece? piece;        // If not null, we're editing this existing piece
-  final PieceType? fileType; // Type of file for new piece (if creating)
-  final String? filePath;    // File path for new piece (if creating)
+  final Piece? piece;        // existing piece to edit, or null if creating new
+  final PieceType? fileType; // required if creating new
+  final String? filePath;    // required if creating new (path of initial PDF/image)
 
   CreationPage({Key? key, this.piece, this.fileType, this.filePath}) : super(key: key) {
-    // Ensure either we have an existing piece or file info for a new piece
+    // Ensure correct usage: either editing a piece, or creating with file info
     assert((piece != null && fileType == null && filePath == null) 
         || (piece == null && fileType != null && filePath != null),
-      'Provide either an existing piece for edit, or a fileType and filePath for creation');
+      'Provide either an existing piece to edit, or fileType and filePath for a new piece');
   }
 
   @override
@@ -20,7 +21,7 @@ class CreationPage extends StatefulWidget {
 }
 
 class _CreationPageState extends State<CreationPage> {
-  // Text controllers for input fields
+  // Text controllers for name and composer
   late TextEditingController _nameController;
   late TextEditingController _composerController;
   // Dropdown selections
@@ -30,12 +31,13 @@ class _CreationPageState extends State<CreationPage> {
   late PieceType _type;
   late String? _pdfPath;
   late String? _imagePath;
+  String? _videoPath;
 
   @override
   void initState() {
     super.initState();
     if (widget.piece != null) {
-      // Edit mode: initialize fields from existing piece
+      // Editing an existing piece – load its data
       Piece existing = widget.piece!;
       _nameController = TextEditingController(text: existing.name);
       _composerController = TextEditingController(text: existing.composer ?? '');
@@ -47,13 +49,14 @@ class _CreationPageState extends State<CreationPage> {
         _imagePath = null;
       } else {
         _pdfPath = null;
-        // Just take the first image for preview (assuming at least one exists)
+        // Use first image path as preview (if multiple images are stored)
         _imagePath = (existing.imagePaths != null && existing.imagePaths!.isNotEmpty) 
                       ? existing.imagePaths!.first 
                       : null;
       }
+      _videoPath = existing.videoPath;
     } else {
-      // Create mode: use provided file info
+      // Creating a new piece – initialize with provided file info
       _nameController = TextEditingController();
       _composerController = TextEditingController();
       _type = widget.fileType!;
@@ -64,6 +67,7 @@ class _CreationPageState extends State<CreationPage> {
         _pdfPath = null;
         _imagePath = widget.filePath;
       }
+      _videoPath = null;
     }
   }
 
@@ -74,27 +78,38 @@ class _CreationPageState extends State<CreationPage> {
     super.dispose();
   }
 
+  // Helper to pick a video file for performance
+  Future<void> _pickVideo() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.video);
+    if (result != null && result.files.isNotEmpty) {
+      String videoPath = result.files.single.path!;
+      setState(() {
+        _videoPath = videoPath;
+      });
+    }
+  }
+
   void _onCreateOrSave() {
     final String name = _nameController.text.trim();
     final String composer = _composerController.text.trim();
     if (name.isEmpty) {
       // Name is required
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a name for the piece.')),
+        const SnackBar(content: Text('Please enter a name for the piece.'))
       );
       return;
     }
-
     if (widget.piece != null) {
       // Save changes to existing piece
       widget.piece!.name = name;
       widget.piece!.composer = composer.isEmpty ? null : composer;
       widget.piece!.difficulty = _selectedDifficulty;
       widget.piece!.progress = _selectedProgress;
-      // (File type and paths remain unchanged in edit)
+      widget.piece!.videoPath = _videoPath;  // update video path
+      // Note: type and file paths are not changed on edit
       Navigator.pop(context, widget.piece);
     } else {
-      // Create a new piece object
+      // Create a new Piece object with provided info
       Piece newPiece = Piece(
         name: name,
         composer: composer.isEmpty ? null : composer,
@@ -103,6 +118,7 @@ class _CreationPageState extends State<CreationPage> {
         type: _type,
         pdfPath: _type == PieceType.pdf ? _pdfPath : null,
         imagePaths: _type == PieceType.image ? [_imagePath!] : null,
+        videoPath: _videoPath,
       );
       Navigator.pop(context, newPiece);
     }
@@ -119,19 +135,19 @@ class _CreationPageState extends State<CreationPage> {
         padding: const EdgeInsets.all(16.0),
         child: SingleChildScrollView(
           child: Flex(
-            direction: Axis.horizontal, // Attempt horizontal layout if space allows
+            direction: Axis.horizontal, // layout horizontally if space allows
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Preview section
-              if (_type == PieceType.pdf) 
+              // File preview section
+              if (_type == PieceType.pdf)
                 Container(
-                  width: 100, 
+                  width: 100,
                   height: 140,
                   alignment: Alignment.center,
                   color: Colors.grey[300],
                   child: Icon(Icons.picture_as_pdf, size: 80, color: Colors.grey[700]),
                 )
-              else if (_imagePath != null) 
+              else if (_imagePath != null)
                 Image.file(
                   File(_imagePath!),
                   width: 100,
@@ -144,19 +160,15 @@ class _CreationPageState extends State<CreationPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Piece name (required)
+                    // Piece name
                     TextField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Piece Name *',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Piece Name *'),
                     ),
                     // Composer name (optional)
                     TextField(
                       controller: _composerController,
-                      decoration: const InputDecoration(
-                        labelText: 'Composer (optional)',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Composer (optional)'),
                     ),
                     const SizedBox(height: 10),
                     // Difficulty dropdown
@@ -187,6 +199,37 @@ class _CreationPageState extends State<CreationPage> {
                         }
                       },
                     ),
+                    const SizedBox(height: 10),
+                    // Performance Video selection
+                    if (_videoPath != null) 
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Video: ${Uri.file(_videoPath!).pathSegments.last}',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _pickVideo,
+                            child: const Text('Change'),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              setState(() {
+                                _videoPath = null;
+                              });
+                            },
+                            child: const Text('Remove'),
+                          ),
+                        ],
+                      )
+                    else
+                      OutlinedButton.icon(
+                        icon: const Icon(Icons.video_library),
+                        label: const Text('Add Performance Video'),
+                        onPressed: _pickVideo,
+                      ),
                     const SizedBox(height: 20),
                     // Create/Save button
                     Center(

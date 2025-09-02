@@ -15,21 +15,22 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final List<Piece> _pieces = [];  // list of pieces in the portfolio
-
   final ImagePicker _imagePicker = ImagePicker();
 
-  // Helper: open file picker for PDF
+  // Helper: pick a PDF file and add a new piece
   Future<void> _pickPdfAndAdd() async {
     final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
     if (result != null && result.files.isNotEmpty) {
-      String pdfPath = result.files.single.path!; 
-      // Navigate to creation page with the selected PDF
-      Piece? newPiece = await Navigator.push(context, MaterialPageRoute(
-        builder: (_) => CreationPage(filePath: pdfPath, fileType: PieceType.pdf),
-      ));
+      String pdfPath = result.files.single.path!;
+      // Go to creation page with the selected PDF
+      Piece? newPiece = await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => CreationPage(filePath: pdfPath, fileType: PieceType.pdf))
+      );
       if (newPiece != null) {
         setState(() {
           _pieces.add(newPiece);
+          // Sort by difficulty
+          _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
         });
       }
     }
@@ -40,46 +41,55 @@ class _HomePageState extends State<HomePage> {
     final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera);
     if (photo != null) {
       String imagePath = photo.path;
-      // Navigate to creation page with the captured image
-      Piece? newPiece = await Navigator.push(context, MaterialPageRoute(
-        builder: (_) => CreationPage(filePath: imagePath, fileType: PieceType.image),
-      ));
+      // Go to creation page with the captured image
+      Piece? newPiece = await Navigator.push(context,
+        MaterialPageRoute(builder: (_) => CreationPage(filePath: imagePath, fileType: PieceType.image))
+      );
       if (newPiece != null) {
         setState(() {
           _pieces.add(newPiece);
+          _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
         });
       }
     }
   }
 
-  // Show options (PDF or Scan) when the + button is pressed
+  // Difficulty rank helper for sorting
+  int _difficultyRank(String difficulty) {
+    switch (difficulty) {
+      case 'Beginner': return 0;
+      case 'Intermediate': return 1;
+      case 'Advanced': return 2;
+      default: return 3;
+    }
+  }
+
+  // Show options (PDF or Scan) when + button is pressed
   void _showAddOptions() {
     showModalBottomSheet(
       context: context,
-      builder: (_) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.file_present),
-                title: const Text('Upload PDF'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _pickPdfAndAdd();
-                },
-              ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt),
-                title: const Text('Scan Papers'),
-                onTap: () {
-                  Navigator.pop(context);
-                  _scanImageAndAdd();
-                },
-              ),
-            ],
-          ),
-        );
-      },
+      builder: (_) => SafeArea(
+        child: Wrap(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.file_present),
+              title: const Text('Upload PDF'),
+              onTap: () {
+                Navigator.pop(context);
+                _pickPdfAndAdd();
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.camera_alt),
+              title: const Text('Scan Papers'),
+              onTap: () {
+                Navigator.pop(context);
+                _scanImageAndAdd();
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -90,22 +100,19 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(
         title: const Text('FlowScores'),
       ),
-      body: hasPieces 
-        ? _buildPortfolioList() 
-        : _buildFirstPiecePrompt(),
+      body: hasPieces ? _buildPortfolioList() : _buildFirstPiecePrompt(),
       floatingActionButton: hasPieces 
-        ? FloatingActionButton(
-            onPressed: _showAddOptions,
-            tooltip: 'Add Piece',
-            child: const Icon(Icons.add),
-          )
-        : null,
-      // Place FAB on bottom-left if present
+          ? FloatingActionButton(
+              onPressed: _showAddOptions,
+              tooltip: 'Add Piece',
+              child: const Icon(Icons.add),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
     );
   }
 
-  // Widget for initial state (no pieces): prompts to add first piece
+  // Initial view when no pieces
   Widget _buildFirstPiecePrompt() {
     return Center(
       child: Column(
@@ -132,7 +139,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Widget for portfolio list when pieces have been added
+  // List of pieces grouped by difficulty
   Widget _buildPortfolioList() {
     return ListView.builder(
       padding: const EdgeInsets.all(8.0),
@@ -144,14 +151,14 @@ class _HomePageState extends State<HomePage> {
           child: ListTile(
             title: Text(piece.name),
             subtitle: Text('${piece.difficulty} • ${piece.progress}'),
-            onTap: () async {
-              // Open the piece view page. After returning, refresh to reflect any edits.
-              await Navigator.push(context, MaterialPageRoute(
-                builder: (_) => PiecePage(piece: piece),
-              ));
-              setState(() {}); // refresh list (in case piece was edited)
-            },
             trailing: Icon(piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image),
+            onTap: () async {
+              // Open piece view; on return, resort in case of difficulty change
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
+              setState(() {
+                _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
+              });
+            },
           ),
         );
       },
