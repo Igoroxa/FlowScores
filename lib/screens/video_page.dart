@@ -1,4 +1,3 @@
-// lib/screens/video_page.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
@@ -19,16 +18,14 @@ class _VideoPageState extends State<VideoPage> {
   void initState() {
     super.initState();
     _videoController = VideoPlayerController.file(File(widget.videoPath));
-    // Update UI on state changes (e.g., for play/pause icon)
     _videoController.addListener(() {
       if (mounted) {
-        setState(() {});  // rebuild when video state changes
+        setState(() {}); // update UI on controller state changes
       }
     });
-    // Initialize the controller and start playing when ready
     _initializeFuture = _videoController.initialize().then((_) {
       _videoController.play();
-      setState(() {});  // video is initialized
+      setState(() {}); 
     });
   }
 
@@ -48,7 +45,7 @@ class _VideoPageState extends State<VideoPage> {
         future: _initializeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.done) {
-            // When initialization is complete, show the video
+            // Video initialized
             return Center(
               child: AspectRatio(
                 aspectRatio: _videoController.value.aspectRatio,
@@ -56,7 +53,7 @@ class _VideoPageState extends State<VideoPage> {
               ),
             );
           } else {
-            // Otherwise, show a loading spinner
+            // Loading
             return const Center(child: CircularProgressIndicator());
           }
         },

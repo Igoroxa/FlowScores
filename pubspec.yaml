@@ -10,16 +10,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # audio + pdf viewing + file pickers
-  flutter_cached_pdfview: ^0.4.2
+  # File pickers and media
   file_picker: ^8.0.3
   image_picker: ^1.1.2
-  # NEW: use native_pdf_renderer instead of pdf_render
+  # PDF rendering (convert PDF to images)
+  pdf_image_renderer: ^1.0.1
+  # Audio and video playback
   audioplayers: ^6.0.0
-  video_player: ^2.10.0    # new dependency for video playback
-  # pdf_render: ^1.4.12     # temporarily disabled due to compatibility issues
-  # syncfusion_flutter_pdfviewer: ^24.1.41  # alternative PDF viewer - also has compatibility issues
-  # photo_view: ^0.14.0   # temporarily disabled due to dependency issues
+  video_player: ^2.10.0
 
 dev_dependencies:
   flutter_test:
@@ -29,5 +27,4 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   assets:
-    # IMPORTANT: exact case must match the real file name you said you changed to
-    - assets/click.MP3
+    - assets/click_sound.wav

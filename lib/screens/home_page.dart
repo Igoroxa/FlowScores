@@ -1,4 +1,3 @@
-// lib/screens/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -13,48 +12,65 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  final List<Piece> _pieces = [];  // list of pieces in the portfolio
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
+  final List<Piece> _pieces = [];         // list of pieces added
   final ImagePicker _imagePicker = ImagePicker();
+  String _searchQuery = "";               // current search text for filtering
+  late TabController _tabController;      // controller for difficulty filter tabs
+  final List<String> _difficulties = ['Beginner', 'Intermediate', 'Advanced'];
 
-  // Helper: pick a PDF file and add a new piece
-  Future<void> _pickPdfAndAdd() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['pdf']);
-    if (result != null && result.files.isNotEmpty) {
-      String pdfPath = result.files.single.path!;
-      // Go to creation page with the selected PDF
-      Piece? newPiece = await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => CreationPage(filePath: pdfPath, fileType: PieceType.pdf))
-      );
-      if (newPiece != null) {
-        setState(() {
-          _pieces.add(newPiece);
-          // Sort by difficulty
-          _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: _difficulties.length, vsync: this);
+    _tabController.addListener(() {
+      setState(() {
+        // refresh list when tab changes
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  // Filter pieces by current search text and selected difficulty tab
+  List<Piece> get _filteredPieces {
+    String query = _searchQuery.toLowerCase();
+    String selectedDiff = _difficulties[_tabController.index];
+    return _pieces.where((piece) {
+      bool matchesQuery = query.isEmpty ||
+          piece.name.toLowerCase().contains(query) ||
+          (piece.composer?.toLowerCase().contains(query) ?? false);
+      bool matchesDiff = piece.difficulty == selectedDiff;
+      return matchesQuery && matchesDiff;
+    }).toList();
+  }
+
+  // Navigate to the creation page to add a new piece
+  void _onAddNewWork() async {
+    Piece? newPiece = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => CreationPage()),  // no initial file, user will choose inside
+    );
+    if (newPiece != null) {
+      setState(() {
+        _pieces.add(newPiece);
+        // Sorting within a difficulty group (optional): sort by name
+        _pieces.sort((a, b) {
+          if (a.difficulty != b.difficulty) {
+            // Keep pieces grouped by difficulty (Beginner/Intermediate/Advanced)
+            return _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty));
+          }
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
         });
-      }
+      });
     }
   }
 
-  // Helper: use camera to scan and add an image piece
-  Future<void> _scanImageAndAdd() async {
-    final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera);
-    if (photo != null) {
-      String imagePath = photo.path;
-      // Go to creation page with the captured image
-      Piece? newPiece = await Navigator.push(context,
-        MaterialPageRoute(builder: (_) => CreationPage(filePath: imagePath, fileType: PieceType.image))
-      );
-      if (newPiece != null) {
-        setState(() {
-          _pieces.add(newPiece);
-          _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
-        });
-      }
-    }
-  }
-
-  // Difficulty rank helper for sorting
+  // Difficulty ranking helper (for sorting, if needed)
   int _difficultyRank(String difficulty) {
     switch (difficulty) {
       case 'Beginner': return 0;
@@ -64,101 +80,135 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  // Show options (PDF or Scan) when + button is pressed
-  void _showAddOptions() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SafeArea(
-        child: Wrap(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.file_present),
-              title: const Text('Upload PDF'),
-              onTap: () {
-                Navigator.pop(context);
-                _pickPdfAndAdd();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Scan Papers'),
-              onTap: () {
-                Navigator.pop(context);
-                _scanImageAndAdd();
-              },
-            ),
-          ],
-        ),
-      ),
-    );
+  // Remove a piece from the list (used for swipe-to-delete)
+  void _deletePiece(int index) {
+    setState(() {
+      _pieces.removeAt(index);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final bool hasPieces = _pieces.isNotEmpty;
+    bool hasPieces = _pieces.isNotEmpty;
     return Scaffold(
       appBar: AppBar(
         title: const Text('FlowScores'),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: _difficulties.map((level) => Tab(text: level)).toList(),
+        ),
       ),
-      body: hasPieces ? _buildPortfolioList() : _buildFirstPiecePrompt(),
-      floatingActionButton: hasPieces 
-          ? FloatingActionButton(
-              onPressed: _showAddOptions,
-              tooltip: 'Add Piece',
-              child: const Icon(Icons.add),
-            )
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
+      body: Column(
+        children: [
+          // Search field at top
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: TextField(
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search by title or composer',
+                border: OutlineInputBorder(),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
+            ),
+          ),
+          // Piece list (within Expanded)
+          Expanded(
+            child: hasPieces ? _buildPieceList() : _buildEmptyState(),
+          ),
+        ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _onAddNewWork,
+        icon: const Icon(Icons.add),
+        label: const Text('Add New Work'),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  // Initial view when no pieces
-  Widget _buildFirstPiecePrompt() {
+  Widget _buildEmptyState() {
+    // Shown when no pieces have been added yet
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Text(
-            'Add your First Piece',
+            'Add your first piece',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
           ElevatedButton.icon(
-            icon: const Icon(Icons.file_present),
-            label: const Text('Upload PDF'),
-            onPressed: _pickPdfAndAdd,
-          ),
-          const SizedBox(height: 10),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.camera_alt),
-            label: const Text('Scan Papers'),
-            onPressed: _scanImageAndAdd,
+            icon: const Icon(Icons.add),
+            label: const Text('Add New Work'),
+            onPressed: _onAddNewWork,
           ),
         ],
       ),
     );
   }
 
-  // List of pieces grouped by difficulty
-  Widget _buildPortfolioList() {
+  Widget _buildPieceList() {
+    final filtered = _filteredPieces;
+    if (filtered.isEmpty) {
+      // No pieces match filter
+      return Center(child: Text('No pieces found', style: TextStyle(fontSize: 16)));
+    }
     return ListView.builder(
-      padding: const EdgeInsets.all(8.0),
-      itemCount: _pieces.length,
+      padding: const EdgeInsets.only(bottom: 80),  // add bottom padding for FAB space
+      itemCount: filtered.length,
       itemBuilder: (context, index) {
-        Piece piece = _pieces[index];
-        return Card(
-          margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 4.0),
-          child: ListTile(
-            title: Text(piece.name),
-            subtitle: Text('${piece.difficulty} • ${piece.progress}'),
-            trailing: Icon(piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image),
-            onTap: () async {
-              // Open piece view; on return, resort in case of difficulty change
-              await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
-              setState(() {
-                _pieces.sort((a, b) => _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty)));
-              });
-            },
+        final piece = filtered[index];
+        return Dismissible(
+          key: ValueKey(piece.name + piece.difficulty + (piece.pdfPath ?? piece.imagePaths.toString())),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) => _deletePiece(_pieces.indexOf(piece)),
+          background: Container(
+            color: Colors.red, 
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: const Icon(Icons.delete, color: Colors.white),
+          ),
+          child: Card(
+            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: ListTile(
+              title: Text(piece.name),
+              subtitle: Text(
+                (piece.composer != null && piece.composer!.isNotEmpty)
+                  ? '${piece.composer} • ${piece.difficulty} • ${piece.progress}'
+                  : '${piece.difficulty} • ${piece.progress}'
+              ),
+              trailing: Icon(piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image),
+              onTap: () async {
+                // Open piece view
+                await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
+                // After returning, if difficulty or progress may have changed, sort list
+                setState(() {
+                  _pieces.sort((a, b) {
+                    if (a.difficulty != b.difficulty) {
+                      return _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty));
+                    }
+                    return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+                  });
+                });
+              },
+              // Optional: edit inline button
+              // trailing: IconButton(
+              //   icon: Icon(Icons.edit),
+              //   onPressed: () {
+              //     Navigator.push(context, MaterialPageRoute(builder: (_) => CreationPage(piece: piece)))
+              //       .then((updatedPiece) {
+              //         if (updatedPiece != null) {
+              //           setState(() {}); // piece list will reflect changes since we're editing in place
+              //         }
+              //       });
+              //   },
+              // ),
+            ),
           ),
         );
       },

@@ -1,73 +1,55 @@
 // lib/screens/creation_page.dart
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf_image_renderer/pdf_image_renderer.dart';
+
 import '../models/piece.dart';
 
 class CreationPage extends StatefulWidget {
-  final Piece? piece;        // existing piece to edit, or null if creating new
-  final PieceType? fileType; // required if creating new
-  final String? filePath;    // required if creating new (path of initial PDF/image)
-
-  CreationPage({Key? key, this.piece, this.fileType, this.filePath}) : super(key: key) {
-    // Ensure correct usage: either editing a piece, or creating with file info
-    assert((piece != null && fileType == null && filePath == null) 
-        || (piece == null && fileType != null && filePath != null),
-      'Provide either an existing piece to edit, or fileType and filePath for a new piece');
-  }
+  final Piece? piece; // null => creating new; non-null => editing
+  const CreationPage({Key? key, this.piece}) : super(key: key);
 
   @override
   State<CreationPage> createState() => _CreationPageState();
 }
 
 class _CreationPageState extends State<CreationPage> {
-  // Text controllers for name and composer
-  late TextEditingController _nameController;
-  late TextEditingController _composerController;
-  // Dropdown selections
+  late final TextEditingController _nameController;
+  late final TextEditingController _composerController;
+
   String _selectedDifficulty = 'Beginner';
   String _selectedProgress = 'Not Started';
 
-  late PieceType _type;
-  late String? _pdfPath;
-  late String? _imagePath;
+  PieceType? _type;              // pdf or image after selection
+  String? _pdfPath;              // when a PDF is chosen
+  List<String> _imagePaths = []; // when one or more images are chosen
   String? _videoPath;
+
+  bool _isConvertingPdf = false;
+
+  final ImagePicker _imagePicker = ImagePicker();
 
   @override
   void initState() {
     super.initState();
     if (widget.piece != null) {
-      // Editing an existing piece – load its data
-      Piece existing = widget.piece!;
-      _nameController = TextEditingController(text: existing.name);
-      _composerController = TextEditingController(text: existing.composer ?? '');
-      _selectedDifficulty = existing.difficulty;
-      _selectedProgress = existing.progress;
-      _type = existing.type;
-      if (_type == PieceType.pdf) {
-        _pdfPath = existing.pdfPath;
-        _imagePath = null;
-      } else {
-        _pdfPath = null;
-        // Use first image path as preview (if multiple images are stored)
-        _imagePath = (existing.imagePaths != null && existing.imagePaths!.isNotEmpty) 
-                      ? existing.imagePaths!.first 
-                      : null;
-      }
-      _videoPath = existing.videoPath;
+      final p = widget.piece!;
+      _nameController = TextEditingController(text: p.name);
+      _composerController = TextEditingController(text: p.composer ?? '');
+      _selectedDifficulty = p.difficulty;
+      _selectedProgress = p.progress;
+      _type = p.type;
+      _pdfPath = p.pdfPath;
+      _imagePaths = p.imagePaths ?? [];
+      _videoPath = p.videoPath;
     } else {
-      // Creating a new piece – initialize with provided file info
       _nameController = TextEditingController();
       _composerController = TextEditingController();
-      _type = widget.fileType!;
-      if (_type == PieceType.pdf) {
-        _pdfPath = widget.filePath;
-        _imagePath = null;
-      } else {
-        _pdfPath = null;
-        _imagePath = widget.filePath;
-      }
-      _videoPath = null;
     }
   }
 
@@ -78,173 +60,352 @@ class _CreationPageState extends State<CreationPage> {
     super.dispose();
   }
 
-  // Helper to pick a video file for performance
-  Future<void> _pickVideo() async {
-    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.video);
-    if (result != null && result.files.isNotEmpty) {
-      String videoPath = result.files.single.path!;
+  // ---------- Pickers ----------
+
+  Future<void> _pickPdf() async {
+    final FilePickerResult? res = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+    );
+    if (res != null && res.files.isNotEmpty) {
       setState(() {
-        _videoPath = videoPath;
+        _type = PieceType.pdf;
+        _pdfPath = res.files.single.path!;
+        _imagePaths.clear();
       });
     }
   }
 
-  void _onCreateOrSave() {
-    final String name = _nameController.text.trim();
-    final String composer = _composerController.text.trim();
-    if (name.isEmpty) {
-      // Name is required
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a name for the piece.'))
-      );
-      return;
-    }
-    if (widget.piece != null) {
-      // Save changes to existing piece
-      widget.piece!.name = name;
-      widget.piece!.composer = composer.isEmpty ? null : composer;
-      widget.piece!.difficulty = _selectedDifficulty;
-      widget.piece!.progress = _selectedProgress;
-      widget.piece!.videoPath = _videoPath;  // update video path
-      // Note: type and file paths are not changed on edit
-      Navigator.pop(context, widget.piece);
-    } else {
-      // Create a new Piece object with provided info
-      Piece newPiece = Piece(
-        name: name,
-        composer: composer.isEmpty ? null : composer,
-        difficulty: _selectedDifficulty,
-        progress: _selectedProgress,
-        type: _type,
-        pdfPath: _type == PieceType.pdf ? _pdfPath : null,
-        imagePaths: _type == PieceType.image ? [_imagePath!] : null,
-        videoPath: _videoPath,
-      );
-      Navigator.pop(context, newPiece);
+  Future<void> _pickImagesFromGallery() async {
+    final FilePickerResult? res = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      allowMultiple: true,
+    );
+    if (res != null && res.files.isNotEmpty) {
+      setState(() {
+        _type = PieceType.image;
+        _imagePaths = res.files.map((f) => f.path!).toList();
+        _pdfPath = null;
+      });
     }
   }
 
+  Future<void> _captureImage() async {
+    final XFile? photo = await _imagePicker.pickImage(source: ImageSource.camera);
+    if (photo != null) {
+      setState(() {
+        _type = PieceType.image;
+        _imagePaths = [photo.path];
+        _pdfPath = null;
+      });
+    }
+  }
+
+  Future<void> _pickVideo() async {
+    final FilePickerResult? res =
+        await FilePicker.platform.pickFiles(type: FileType.video);
+    if (res != null && res.files.isNotEmpty) {
+      setState(() => _videoPath = res.files.single.path!);
+    }
+  }
+
+  // ---------- Save / Create ----------
+
+  Future<void> _onSave() async {
+    final name = _nameController.text.trim();
+    final composer = _composerController.text.trim();
+
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a title for the piece.')),
+      );
+      return;
+    }
+    if (_type == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please upload sheet music (PDF or images).')),
+      );
+      return;
+    }
+
+    // Editing existing piece
+    if (widget.piece != null) {
+      final p = widget.piece!;
+      p.name = name;
+      p.composer = composer.isEmpty ? null : composer;
+      p.difficulty = _selectedDifficulty;
+      p.progress = _selectedProgress;
+      p.videoPath = _videoPath;
+      // (Changing sheet files on edit is intentionally not supported.)
+      Navigator.pop(context, p);
+      return;
+    }
+
+    // Creating a new piece
+    List<String> imagePaths = _imagePaths;
+    PieceType finalType = _type!;
+    String? pdfPath = _pdfPath;
+
+    // Convert PDF to images (if a PDF was selected)
+    if (_type == PieceType.pdf && _pdfPath != null) {
+      setState(() => _isConvertingPdf = true);
+      try {
+        final pdf = PdfImageRenderer(path: _pdfPath!);
+
+        await pdf.open();
+        final int pageCount = await pdf.getPageCount();
+        final outDir = await getApplicationDocumentsDirectory();
+
+        final generated = <String>[];
+        for (int i = 0; i < pageCount; i++) {
+          await pdf.openPage(pageIndex: i);
+          final size = await pdf.getPageSize(pageIndex: i);
+
+          final Uint8List? bytes = await pdf.renderPage(
+            pageIndex: i,
+            x: 0,
+            y: 0,
+            width: size.width,
+            height: size.height,
+            scale: 1,
+            background: Colors.white,
+          );
+
+          if (bytes == null) {
+            // skip page if render failed
+            await pdf.closePage(pageIndex: i);
+            continue;
+          }
+
+          final filename =
+              '${_fileNameWithoutExt(_pdfPath!)}_page${i + 1}.png';
+          final path = '${outDir.path}/$filename';
+          await File(path).writeAsBytes(bytes, flush: true);
+
+          generated.add(path);
+          await pdf.closePage(pageIndex: i);
+        }
+        await pdf.close();
+
+        imagePaths = generated;
+        finalType = PieceType.image; // from now on we display images
+      } catch (e) {
+        debugPrint('PDF conversion error: $e');
+      } finally {
+        setState(() => _isConvertingPdf = false);
+      }
+    }
+
+    final newPiece = Piece(
+      name: name,
+      composer: composer.isEmpty ? null : composer,
+      difficulty: _selectedDifficulty,
+      progress: _selectedProgress,
+      type: finalType,
+      pdfPath: pdfPath,
+      imagePaths: imagePaths,
+      videoPath: _videoPath,
+    );
+
+    Navigator.pop(context, newPiece);
+  }
+
+  String _fileNameWithoutExt(String path) {
+    final file = path.split('/').last;
+    final dot = file.lastIndexOf('.');
+    return dot == -1 ? file : file.substring(0, dot);
+  }
+
+  // ---------- UI ----------
+
   @override
   Widget build(BuildContext context) {
-    final bool isEdit = widget.piece != null;
+    final bool isEdit = widget.piece != null; // pass into form section
+    final bool isWide = MediaQuery.of(context).size.width > 600;
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(isEdit ? 'Edit Piece' : 'Add Piece'),
+      appBar: AppBar(title: Text(isEdit ? 'Edit Piece' : 'Add New Work')),
+      body: Stack(
+        children: [
+          SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: isWide
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 120,
+                        height: 160,
+                        color: Colors.grey[300],
+                        child: _buildPreview(),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(child: _buildFormFields(isEdit)),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 120,
+                        height: 160,
+                        child: Container(
+                          color: Colors.grey[300],
+                          child: _buildPreview(),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildFormFields(isEdit),
+                    ],
+                  ),
+          ),
+          if (_isConvertingPdf)
+            Container(
+              color: Colors.black38,
+              child: const Center(child: CircularProgressIndicator()),
+            ),
+        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Flex(
-            direction: Axis.horizontal, // layout horizontally if space allows
-            crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildPreview() {
+    if (_type == null) {
+      return Center(child: Text('No file', style: TextStyle(color: Colors.grey[700])));
+    }
+    if (_type == PieceType.pdf) {
+      return const Icon(Icons.picture_as_pdf, size: 80, color: Colors.grey);
+    }
+    if (_type == PieceType.image && _imagePaths.isNotEmpty) {
+      return Image.file(File(_imagePaths.first), fit: BoxFit.cover);
+    }
+    return Center(child: Text('No file', style: TextStyle(color: Colors.grey[700])));
+  }
+
+  Widget _buildFormFields(bool isEdit) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _nameController,
+          decoration: const InputDecoration(labelText: 'Title *'),
+        ),
+        TextField(
+          controller: _composerController,
+          decoration: const InputDecoration(labelText: 'Composer (optional)'),
+        ),
+        const SizedBox(height: 10),
+
+        DropdownButton<String>(
+          value: _selectedDifficulty,
+          items: const ['Beginner', 'Intermediate', 'Advanced']
+              .map((e) => DropdownMenuItem(value: e, child: Text('Difficulty: $e')))
+              .toList(),
+          onChanged: (v) => setState(() => _selectedDifficulty = v!),
+        ),
+        DropdownButton<String>(
+          value: _selectedProgress,
+          items: const [
+            'Not Started',
+            'Learning',
+            'Practicing',
+            'Confident',
+            'Polished',
+            'Mastered'
+          ].map((e) => DropdownMenuItem(value: e, child: Text('Progress: $e'))).toList(),
+          onChanged: (v) => setState(() => _selectedProgress = v!),
+        ),
+        const SizedBox(height: 10),
+
+        // Sheet upload section
+        if (_type == null) ...[
+          OutlinedButton.icon(
+            icon: const Icon(Icons.file_present),
+            label: const Text('Upload PDF'),
+            onPressed: _pickPdf,
+          ),
+          Row(
             children: [
-              // File preview section
-              if (_type == PieceType.pdf)
-                Container(
-                  width: 100,
-                  height: 140,
-                  alignment: Alignment.center,
-                  color: Colors.grey[300],
-                  child: Icon(Icons.picture_as_pdf, size: 80, color: Colors.grey[700]),
-                )
-              else if (_imagePath != null)
-                Image.file(
-                  File(_imagePath!),
-                  width: 100,
-                  height: 140,
-                  fit: BoxFit.cover,
-                ),
-              const SizedBox(width: 20),
-              // Form fields section
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Piece name
-                    TextField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(labelText: 'Piece Name *'),
-                    ),
-                    // Composer name (optional)
-                    TextField(
-                      controller: _composerController,
-                      decoration: const InputDecoration(labelText: 'Composer (optional)'),
-                    ),
-                    const SizedBox(height: 10),
-                    // Difficulty dropdown
-                    DropdownButton<String>(
-                      value: _selectedDifficulty,
-                      items: ['Beginner', 'Intermediate', 'Advanced']
-                          .map((level) => DropdownMenuItem(value: level, child: Text('Difficulty: $level')))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedDifficulty = val;
-                          });
-                        }
-                      },
-                    ),
-                    // Progress dropdown
-                    DropdownButton<String>(
-                      value: _selectedProgress,
-                      items: ['Not Started', 'Learning', 'Practicing', 'Confident', 'Polished', 'Mastered']
-                          .map((status) => DropdownMenuItem(value: status, child: Text('Progress: $status')))
-                          .toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _selectedProgress = val;
-                          });
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 10),
-                    // Performance Video selection
-                    if (_videoPath != null) 
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              'Video: ${Uri.file(_videoPath!).pathSegments.last}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: _pickVideo,
-                            child: const Text('Change'),
-                          ),
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _videoPath = null;
-                              });
-                            },
-                            child: const Text('Remove'),
-                          ),
-                        ],
-                      )
-                    else
-                      OutlinedButton.icon(
-                        icon: const Icon(Icons.video_library),
-                        label: const Text('Add Performance Video'),
-                        onPressed: _pickVideo,
-                      ),
-                    const SizedBox(height: 20),
-                    // Create/Save button
-                    Center(
-                      child: ElevatedButton(
-                        onPressed: _onCreateOrSave,
-                        child: Text(isEdit ? 'Save Changes' : 'Create'),
-                      ),
-                    ),
-                  ],
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.photo_library),
+                  label: const Text('Upload Images'),
+                  onPressed: _pickImagesFromGallery,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Scan (Camera)'),
+                  onPressed: _captureImage,
                 ),
               ),
             ],
           ),
+        ] else ...[
+          if (_type == PieceType.pdf && _pdfPath != null)
+            Text('Selected PDF: ${_pdfPath!.split('/').last}',
+                overflow: TextOverflow.ellipsis),
+          if (_type == PieceType.image && _imagePaths.isNotEmpty)
+            Text(
+              _imagePaths.length == 1
+                  ? 'Selected image: ${_imagePaths.first.split('/').last}'
+                  : 'Selected images: ${_imagePaths.length} files',
+              overflow: TextOverflow.ellipsis,
+            ),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => _type == PieceType.pdf ? _pickPdf() : _pickImagesFromGallery(),
+                child: const Text('Change'),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _type = null;
+                    _pdfPath = null;
+                    _imagePaths.clear();
+                  });
+                },
+                child: const Text('Remove'),
+              ),
+            ],
+          )
+        ],
+
+        const SizedBox(height: 10),
+
+        // Performance video
+        if (_videoPath != null)
+          Row(
+            children: [
+              Expanded(
+                child: Text('Video: ${_videoPath!.split('/').last}',
+                    overflow: TextOverflow.ellipsis),
+              ),
+              TextButton(onPressed: _pickVideo, child: const Text('Change')),
+              TextButton(
+                onPressed: () => setState(() => _videoPath = null),
+                child: const Text('Remove'),
+              ),
+            ],
+          )
+        else
+          OutlinedButton.icon(
+            icon: const Icon(Icons.video_library),
+            label: const Text('Add Performance Video'),
+            onPressed: _pickVideo,
+          ),
+
+        const SizedBox(height: 20),
+        Center(
+          child: ElevatedButton(
+            onPressed: _isConvertingPdf ? null : _onSave,
+            child: Text(isEdit ? 'Save Changes' : 'Create'),
+          ),
         ),
-      ),
+      ],
     );
   }
 }

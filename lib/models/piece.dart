@@ -1,4 +1,3 @@
-// lib/models/piece.dart
 import 'dart:convert';
 
 enum PieceType { pdf, image }
@@ -11,7 +10,7 @@ class Piece {
   PieceType type;
   String? pdfPath;
   List<String>? imagePaths;
-  String? videoPath;  // new field for performance video file path
+  String? videoPath;  // path to an attached performance video file
 
   Piece({
     required this.name,
@@ -23,4 +22,6 @@ class Piece {
     this.imagePaths,
     this.videoPath,
   });
+
+  // (We could add toJson/fromJson here if persisting pieces, but for now it's just an in-memory model.)
 }
