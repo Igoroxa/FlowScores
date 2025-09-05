@@ -91,11 +91,33 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   Widget build(BuildContext context) {
     bool hasPieces = _pieces.isNotEmpty;
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('FlowScores'),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: _difficulties.map((level) => Tab(text: level)).toList(),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'FlowScores',
+          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(50),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(25),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(25),
+              ),
+              labelColor: Colors.black,
+              unselectedLabelColor: Colors.grey[600],
+              tabs: _difficulties.map((level) => Tab(text: level)).toList(),
+            ),
+          ),
         ),
       ),
       body: Column(
@@ -104,10 +126,17 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
-              decoration: const InputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: 'Search by title or composer',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                hintText: 'Search',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(25),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
               ),
               onChanged: (value) {
                 setState(() {
@@ -122,10 +151,26 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _onAddNewWork,
-        icon: const Icon(Icons.add),
-        label: const Text('Add New Work'),
+      floatingActionButton: Container(
+        width: double.infinity,
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: ElevatedButton(
+          onPressed: _onAddNewWork,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Colors.black,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(25),
+            ),
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            elevation: 4,
+            shadowColor: Colors.black.withOpacity(0.3),
+          ),
+          child: const Text(
+            'Add New Work',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          ),
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
@@ -137,15 +182,27 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             'Add your first piece',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[600]),
           ),
           const SizedBox(height: 20),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.add),
-            label: const Text('Add New Work'),
+          ElevatedButton(
             onPressed: _onAddNewWork,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(25),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              elevation: 4,
+              shadowColor: Colors.black.withOpacity(0.3),
+            ),
+            child: const Text(
+              'Add New Work',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
           ),
         ],
       ),
@@ -156,10 +213,10 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     final filtered = _filteredPieces;
     if (filtered.isEmpty) {
       // No pieces match filter
-      return Center(child: Text('No pieces found', style: TextStyle(fontSize: 16)));
+      return Center(child: Text('No pieces found', style: TextStyle(fontSize: 16, color: Colors.grey[600])));
     }
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80),  // add bottom padding for FAB space
+      padding: const EdgeInsets.only(bottom: 100, left: 16, right: 16, top: 8),  // add bottom padding for FAB space
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final piece = filtered[index];
@@ -173,16 +230,42 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: const Icon(Icons.delete, color: Colors.white),
           ),
-          child: Card(
-            margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: Container(
+            margin: const EdgeInsets.symmetric(vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
             child: ListTile(
-              title: Text(piece.name),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              title: Text(
+                piece.name,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
               subtitle: Text(
                 (piece.composer != null && piece.composer!.isNotEmpty)
                   ? '${piece.composer} • ${piece.difficulty} • ${piece.progress}'
-                  : '${piece.difficulty} • ${piece.progress}'
+                  : '${piece.difficulty} • ${piece.progress}',
+                style: TextStyle(
+                  color: Colors.white.withOpacity(0.8),
+                  fontSize: 14,
+                ),
               ),
-              trailing: Icon(piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image),
+              trailing: Icon(
+                piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image,
+                color: Colors.white,
+              ),
               onTap: () async {
                 // Open piece view
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
@@ -196,18 +279,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                   });
                 });
               },
-              // Optional: edit inline button
-              // trailing: IconButton(
-              //   icon: Icon(Icons.edit),
-              //   onPressed: () {
-              //     Navigator.push(context, MaterialPageRoute(builder: (_) => CreationPage(piece: piece)))
-              //       .then((updatedPiece) {
-              //         if (updatedPiece != null) {
-              //           setState(() {}); // piece list will reflect changes since we're editing in place
-              //         }
-              //       });
-              //   },
-              // ),
             ),
           ),
         );

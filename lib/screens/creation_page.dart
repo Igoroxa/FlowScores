@@ -216,48 +216,137 @@ class _CreationPageState extends State<CreationPage> {
     return dot == -1 ? file : file.substring(0, dot);
   }
 
+  String _getUploadedFileName() {
+    if (_type == PieceType.pdf && _pdfPath != null) {
+      return _pdfPath!.split('/').last;
+    } else if (_type == PieceType.image && _imagePaths.isNotEmpty) {
+      return _imagePaths.first.split('/').last;
+    }
+    return '';
+  }
+
+  Widget _buildUploadOptionButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        elevation: 1,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showUploadOptions() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Choose Upload Method',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.picture_as_pdf,
+                    label: 'PDF',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _pickPdf();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.camera_alt,
+                    label: 'Camera',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _captureImage();
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.photo_library,
+                    label: 'Gallery',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _pickImagesFromGallery();
+                    },
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
   // ---------- UI ----------
 
   @override
   Widget build(BuildContext context) {
-    final bool isEdit = widget.piece != null; // pass into form section
-    final bool isWide = MediaQuery.of(context).size.width > 600;
+    final bool isEdit = widget.piece != null;
 
     return Scaffold(
-      appBar: AppBar(title: Text(isEdit ? 'Edit Piece' : 'Add New Work')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Work Creation',
+          style: TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+      ),
       body: Stack(
         children: [
           SingleChildScrollView(
             padding: const EdgeInsets.all(16),
-            child: isWide
-                ? Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 120,
-                        height: 160,
-                        color: Colors.grey[300],
-                        child: _buildPreview(),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(child: _buildFormFields(isEdit)),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        height: 160,
-                        child: Container(
-                          color: Colors.grey[300],
-                          child: _buildPreview(),
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildFormFields(isEdit),
-                    ],
-                  ),
+            child: _buildFormFields(isEdit),
           ),
           if (_isConvertingPdf)
             Container(
@@ -286,123 +375,332 @@ class _CreationPageState extends State<CreationPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          controller: _nameController,
-          decoration: const InputDecoration(labelText: 'Title *'),
-        ),
-        TextField(
-          controller: _composerController,
-          decoration: const InputDecoration(labelText: 'Composer (optional)'),
-        ),
-        const SizedBox(height: 10),
-
-        DropdownButton<String>(
-          value: _selectedDifficulty,
-          items: const ['Beginner', 'Intermediate', 'Advanced']
-              .map((e) => DropdownMenuItem(value: e, child: Text('Difficulty: $e')))
-              .toList(),
-          onChanged: (v) => setState(() => _selectedDifficulty = v!),
-        ),
-        DropdownButton<String>(
-          value: _selectedProgress,
-          items: const [
-            'Not Started',
-            'Learning',
-            'Practicing',
-            'Confident',
-            'Polished',
-            'Mastered'
-          ].map((e) => DropdownMenuItem(value: e, child: Text('Progress: $e'))).toList(),
-          onChanged: (v) => setState(() => _selectedProgress = v!),
-        ),
-        const SizedBox(height: 10),
-
-        // Sheet upload section
-        if (_type == null) ...[
-          OutlinedButton.icon(
-            icon: const Icon(Icons.file_present),
-            label: const Text('Upload PDF'),
-            onPressed: _pickPdf,
-          ),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.photo_library),
-                  label: const Text('Upload Images'),
-                  onPressed: _pickImagesFromGallery,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.camera_alt),
-                  label: const Text('Scan (Camera)'),
-                  onPressed: _captureImage,
-                ),
-              ),
-            ],
-          ),
-        ] else ...[
-          if (_type == PieceType.pdf && _pdfPath != null)
-            Text('Selected PDF: ${_pdfPath!.split('/').last}',
-                overflow: TextOverflow.ellipsis),
-          if (_type == PieceType.image && _imagePaths.isNotEmpty)
+        // Title Input Field
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Text(
-              _imagePaths.length == 1
-                  ? 'Selected image: ${_imagePaths.first.split('/').last}'
-                  : 'Selected images: ${_imagePaths.length} files',
-              overflow: TextOverflow.ellipsis,
+              'Title',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
             ),
-          Row(
-            children: [
-              TextButton(
-                onPressed: () => _type == PieceType.pdf ? _pickPdf() : _pickImagesFromGallery(),
-                child: const Text('Change'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _nameController,
+              decoration: InputDecoration(
+                hintText: 'Input',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                suffixIcon: _nameController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.grey),
+                        onPressed: () {
+                          _nameController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
               ),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _type = null;
-                    _pdfPath = null;
-                    _imagePaths.clear();
-                  });
-                },
-                child: const Text('Remove'),
-              ),
-            ],
-          )
-        ],
-
-        const SizedBox(height: 10),
-
-        // Performance video
-        if (_videoPath != null)
-          Row(
-            children: [
-              Expanded(
-                child: Text('Video: ${_videoPath!.split('/').last}',
-                    overflow: TextOverflow.ellipsis),
-              ),
-              TextButton(onPressed: _pickVideo, child: const Text('Change')),
-              TextButton(
-                onPressed: () => setState(() => _videoPath = null),
-                child: const Text('Remove'),
-              ),
-            ],
-          )
-        else
-          OutlinedButton.icon(
-            icon: const Icon(Icons.video_library),
-            label: const Text('Add Performance Video'),
-            onPressed: _pickVideo,
-          ),
-
+              onChanged: (value) => setState(() {}),
+            ),
+          ],
+        ),
         const SizedBox(height: 20),
-        Center(
+
+        // Author Input Field
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Author',
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _composerController,
+              decoration: InputDecoration(
+                hintText: 'Input',
+                hintStyle: TextStyle(color: Colors.grey[400]),
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                suffixIcon: _composerController.text.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.cancel, color: Colors.grey),
+                        onPressed: () {
+                          _composerController.clear();
+                          setState(() {});
+                        },
+                      )
+                    : null,
+              ),
+              onChanged: (value) => setState(() {}),
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // Difficulty Selection
+        Row(
+          children: ['Beginner', 'Intermediate', 'Advanced'].map((difficulty) {
+            final isSelected = _selectedDifficulty == difficulty;
+            return Expanded(
+              child: Container(
+                margin: const EdgeInsets.only(right: 8),
+                child: ElevatedButton(
+                  onPressed: () => setState(() => _selectedDifficulty = difficulty),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      side: BorderSide(
+                        color: isSelected ? Colors.black : Colors.grey[300]!,
+                        width: isSelected ? 2 : 1,
+                      ),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: Text(
+                    difficulty,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 32),
+
+        // Upload Work Section
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Main Upload Work Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _showUploadOptions,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  elevation: 2,
+                  shadowColor: Colors.black.withOpacity(0.2),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Upload Work',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Icon(Icons.upload, size: 20),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            
+            // Upload Options (PDF, Camera, Gallery)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.star,
+                    label: 'PDF',
+                    onPressed: _pickPdf,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.star,
+                    label: 'Camera',
+                    onPressed: _captureImage,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildUploadOptionButton(
+                    icon: Icons.star,
+                    label: 'Gallery',
+                    onPressed: _pickImagesFromGallery,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Show uploaded file info
+            if (_type != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Uploaded: ${_getUploadedFileName()}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _type = null;
+                          _pdfPath = null;
+                          _imagePaths.clear();
+                        });
+                      },
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+
+        const SizedBox(height: 32),
+
+        // Upload Performance Section
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Main Upload Performance Button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _pickVideo,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.black,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                  elevation: 2,
+                  shadowColor: Colors.black.withOpacity(0.2),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Upload Performance',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const Icon(Icons.upload, size: 20),
+                  ],
+                ),
+              ),
+            ),
+            
+            // Show uploaded video info
+            if (_videoPath != null) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Uploaded: ${_videoPath!.split('/').last}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _videoPath = null;
+                        });
+                      },
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.grey,
+                        size: 20,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+
+        const SizedBox(height: 40),
+        
+        // Finish Creating Button
+        SizedBox(
+          width: double.infinity,
           child: ElevatedButton(
             onPressed: _isConvertingPdf ? null : _onSave,
-            child: Text(isEdit ? 'Save Changes' : 'Create'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.black,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              elevation: 2,
+              shadowColor: Colors.black.withOpacity(0.2),
+            ),
+            child: Text(
+              isEdit ? 'Save Changes' : 'Finish Creating',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ),
         ),
       ],

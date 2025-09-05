@@ -25,13 +25,18 @@ class _PiecePageState extends State<PiecePage> {
   int _playerIndex = 0;
   Timer? _metronomeTimer;
   bool _isPlayingMetronome = false;
-  double _bpm = 60;
+  double _bpm = 200;
 
   // Auto-scroll
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   bool _isScrolling = false;
   double _scrollDurationSec = 60; // 10–300 via slider
+
+  // UI State
+  bool _showBottomControls = true;
+  bool _showMetronome = false;
+  bool _showAutoScroll = false;
 
   @override
   void initState() {
@@ -116,27 +121,290 @@ class _PiecePageState extends State<PiecePage> {
     ));
   }
 
-  @override
-  Widget build(BuildContext context) {
-    var title = _piece.name;
-    if ((_piece.composer ?? '').isNotEmpty) {
-      title += ' — ${_piece.composer}';
-    }
+  Widget _buildBottomControls() {
+    return Container(
+      color: Colors.white,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Main control buttons
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildControlButton(
+                    text: 'Metronome',
+                    onPressed: () {
+                      setState(() {
+                        _showMetronome = !_showMetronome;
+                        _showAutoScroll = false;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildControlButton(
+                    text: 'Auto Scroll',
+                    onPressed: () {
+                      setState(() {
+                        _showAutoScroll = !_showAutoScroll;
+                        _showMetronome = false;
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(title),
-        actions: [
-          IconButton(icon: const Icon(Icons.edit), onPressed: _editPiece),
+          // Expandable sections
+          if (_showMetronome) _buildMetronomeSection(),
+          if (_showAutoScroll) _buildAutoScrollSection(),
         ],
       ),
-      body: Column(
+    );
+  }
+
+  Widget _buildControlButton({
+    required String text,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        elevation: 2,
+        shadowColor: Colors.black.withOpacity(0.2),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMetronomeSection() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
         children: [
-          // Sheet images
-          Expanded(
-            child: SingleChildScrollView(
+          // Metronome header
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () {
+                  setState(() {
+                    _showMetronome = false;
+                  });
+                },
+              ),
+              const Expanded(
+                child: Text(
+                  'Metronome',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.black),
+                onPressed: () {},
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Playback controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _isPlayingMetronome ? _toggleMetronome : null,
+                icon: const Icon(Icons.pause, color: Colors.black, size: 32),
+              ),
+              const SizedBox(width: 20),
+              Text(
+                _bpm.round().toString(),
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(width: 20),
+              IconButton(
+                onPressed: _isPlayingMetronome ? null : _toggleMetronome,
+                icon: const Icon(Icons.play_arrow, color: Colors.black, size: 32),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // BPM Slider
+          Slider(
+            value: _bpm,
+            min: 60,
+            max: 200,
+            divisions: 140,
+            onChanged: (value) {
+              setState(() {
+                _bpm = value;
+              });
+              if (_isPlayingMetronome) {
+                _metronomeTimer?.cancel();
+                final interval = Duration(milliseconds: (60000 / _bpm).floor());
+                _metronomeTimer = Timer.periodic(interval, (_) {
+                  _players[_playerIndex].play(AssetSource('click_sound.wav'));
+                  _playerIndex = (_playerIndex + 1) % _players.length;
+                });
+              }
+            },
+            activeColor: Colors.grey[600],
+            inactiveColor: Colors.grey[300],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAutoScrollSection() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        children: [
+          // Auto Scroll header
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.black),
+                onPressed: () {
+                  setState(() {
+                    _showAutoScroll = false;
+                  });
+                },
+              ),
+              const Expanded(
+                child: Text(
+                  'Auto Scroll',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.settings, color: Colors.black),
+                onPressed: () {},
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Playback controls
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              IconButton(
+                onPressed: _isScrolling ? _toggleScroll : null,
+                icon: const Icon(Icons.pause, color: Colors.black, size: 32),
+              ),
+              const SizedBox(width: 20),
+              const Text(
+                '2:00',
+                style: TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                ),
+              ),
+              const SizedBox(width: 20),
+              IconButton(
+                onPressed: _isScrolling ? null : _toggleScroll,
+                icon: const Icon(Icons.play_arrow, color: Colors.black, size: 32),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          // Progress slider
+          Slider(
+            value: _scrollDurationSec,
+            min: 10,
+            max: 300,
+            divisions: 58,
+            onChanged: (value) {
+              setState(() {
+                _scrollDurationSec = value;
+              });
+            },
+            activeColor: Colors.grey[600],
+            inactiveColor: Colors.grey[300],
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          _piece.name,
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings, color: Colors.black),
+            onPressed: _editPiece,
+          ),
+        ],
+      ),
+      body: GestureDetector(
+        onTap: () {
+          if (_showBottomControls) {
+            setState(() {
+              _showBottomControls = false;
+              _showMetronome = false;
+              _showAutoScroll = false;
+            });
+          }
+        },
+        child: Stack(
+          children: [
+            // Sheet music content
+            SingleChildScrollView(
               controller: _scrollController,
-              padding: const EdgeInsets.symmetric(vertical: 8),
               child: Column(
                 children: [
                   if ((_piece.imagePaths ?? []).isNotEmpty)
@@ -157,114 +425,45 @@ class _PiecePageState extends State<PiecePage> {
                 ],
               ),
             ),
-          ),
 
-          // Controls
-          Container(
-            color: Colors.grey[200],
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            child: Column(
-              children: [
-                // Performance video
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_piece.videoPath == null)
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.video_library),
-                        label: const Text('Upload Performance'),
-                        onPressed: () async {
-                          final FilePickerResult? result =
-                              await FilePicker.platform.pickFiles(type: FileType.video);
-                          if (result != null && result.files.isNotEmpty) {
-                            setState(() {
-                              _piece.videoPath = result.files.single.path!;
-                            });
-                          }
-                        },
-                      )
-                    else
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.play_circle_fill),
-                        label: const Text('Play Performance'),
-                        onPressed: _playVideo,
+            // Bottom controls overlay
+            if (_showBottomControls)
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: _buildBottomControls(),
+              ),
+
+            // Tap to show controls
+            if (!_showBottomControls)
+              Positioned(
+                bottom: 20,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: GestureDetector(
+                    onTap: () {
+                      setState(() {
+                        _showBottomControls = true;
+                      });
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.7),
+                        borderRadius: BorderRadius.circular(20),
                       ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-
-                // Sliders
-                Row(
-                  children: [
-                    const Text('Tempo:'),
-                    Expanded(
-                      child: Slider(
-                        min: 0,
-                        max: 300,
-                        divisions: 300,
-                        label: _bpm.round().toString(),
-                        value: _bpm,
-                        onChanged: (v) => setState(() => _bpm = v),
-                        onChangeEnd: (v) {
-                          if (_isPlayingMetronome) {
-                            _metronomeTimer?.cancel();
-                            if (v < 1) {
-                              for (final p in _players) p.stop();
-                              setState(() => _isPlayingMetronome = false);
-                            } else {
-                              final interval =
-                                  Duration(milliseconds: (60000 / v).floor());
-                              _metronomeTimer = Timer.periodic(interval, (_) {
-                                _players[_playerIndex]
-                                    .play(AssetSource('click_sound.wav'));
-                                _playerIndex =
-                                    (_playerIndex + 1) % _players.length;
-                              });
-                            }
-                          }
-                        },
+                      child: const Text(
+                        'Tap to show controls',
+                        style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     ),
-                    Text('${_bpm.round()} BPM'),
-                  ],
+                  ),
                 ),
-                Row(
-                  children: [
-                    const Text('Scroll Duration:'),
-                    Expanded(
-                      child: Slider(
-                        min: 10,
-                        max: 300,
-                        divisions: 58,
-                        label: _scrollDurationSec.round().toString(),
-                        value: _scrollDurationSec,
-                        onChanged: (v) => setState(() => _scrollDurationSec = v),
-                      ),
-                    ),
-                    Text('${_scrollDurationSec.round()}s'),
-                  ],
-                ),
-
-                // Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: _toggleMetronome,
-                      icon: Icon(_isPlayingMetronome ? Icons.pause : Icons.play_arrow),
-                      label: Text(_isPlayingMetronome ? 'Pause Metronome' : 'Play Metronome'),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _toggleScroll,
-                      icon: Icon(_isScrolling ? Icons.pause : Icons.play_arrow),
-                      label: Text(_isScrolling ? 'Pause Scroll' : 'Auto-Scroll'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+          ],
+        ),
       ),
     );
   }
