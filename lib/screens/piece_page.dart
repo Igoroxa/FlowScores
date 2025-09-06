@@ -31,7 +31,7 @@ class _PiecePageState extends State<PiecePage> {
   final ScrollController _scrollController = ScrollController();
   Timer? _scrollTimer;
   bool _isScrolling = false;
-  double _scrollDurationSec = 60; // 10–300 via slider
+  double _scrollDurationSec = 120; // 30–600 seconds (30 seconds to 10 minutes)
 
   // UI State
   bool _showBottomControls = true;
@@ -117,8 +117,14 @@ class _PiecePageState extends State<PiecePage> {
     final path = _piece.videoPath;
     if (path == null) return;
     Navigator.push(context, MaterialPageRoute(
-      builder: (_) => VideoPage(videoPath: path),
+      builder: (_) => VideoPage(videoPath: path, pieceName: _piece.name),
     ));
+  }
+
+  String _formatTime(double seconds) {
+    final minutes = (seconds / 60).floor();
+    final remainingSeconds = (seconds % 60).round();
+    return '${minutes.toString().padLeft(1, '0')}:${remainingSeconds.toString().padLeft(2, '0')}';
   }
 
   Widget _buildBottomControls() {
@@ -258,9 +264,9 @@ class _PiecePageState extends State<PiecePage> {
           // BPM Slider
           Slider(
             value: _bpm,
-            min: 60,
-            max: 200,
-            divisions: 140,
+            min: 30,
+            max: 350,
+            divisions: 320,
             onChanged: (value) {
               setState(() {
                 _bpm = value;
@@ -327,9 +333,9 @@ class _PiecePageState extends State<PiecePage> {
                 icon: const Icon(Icons.pause, color: Colors.black, size: 32),
               ),
               const SizedBox(width: 20),
-              const Text(
-                '2:00',
-                style: TextStyle(
+              Text(
+                _formatTime(_scrollDurationSec),
+                style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
                   color: Colors.black,
@@ -347,9 +353,9 @@ class _PiecePageState extends State<PiecePage> {
           // Progress slider
           Slider(
             value: _scrollDurationSec,
-            min: 10,
-            max: 300,
-            divisions: 58,
+            min: 30,
+            max: 600,
+            divisions: 57,
             onChanged: (value) {
               setState(() {
                 _scrollDurationSec = value;
@@ -384,9 +390,16 @@ class _PiecePageState extends State<PiecePage> {
         ),
         centerTitle: true,
         actions: [
+          if (_piece.videoPath != null)
+            IconButton(
+              icon: const Icon(Icons.play_circle_fill, color: Colors.black),
+              onPressed: _playVideo,
+              tooltip: 'Play Performance Video',
+            ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.black),
             onPressed: _editPiece,
+            tooltip: 'Settings',
           ),
         ],
       ),

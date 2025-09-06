@@ -255,8 +255,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
               ),
               subtitle: Text(
                 (piece.composer != null && piece.composer!.isNotEmpty)
-                  ? '${piece.composer} • ${piece.difficulty} • ${piece.progress}'
-                  : '${piece.difficulty} • ${piece.progress}',
+                  ? '${piece.composer} • ${piece.difficulty}'
+                  : piece.difficulty,
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 14,
