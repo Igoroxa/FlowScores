@@ -95,9 +95,12 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
-          'FlowScores',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: const Padding(
+          padding: EdgeInsets.only(left: 16),
+          child: Text(
+            'FlowScores',
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          ),
         ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(50),
@@ -113,6 +116,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 color: Colors.grey[300],
                 borderRadius: BorderRadius.circular(25),
               ),
+              indicatorPadding: const EdgeInsets.symmetric(horizontal: -12, vertical: 4),
               labelColor: Colors.black,
               unselectedLabelColor: Colors.grey[600],
               tabs: _difficulties.map((level) => Tab(text: level)).toList(),
@@ -126,6 +130,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: TextField(
+              cursorColor: Colors.grey,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 hintText: 'Search',
@@ -183,7 +188,7 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Add your first piece',
+            'Add your First Work',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.grey[600]),
           ),
           const SizedBox(height: 20),

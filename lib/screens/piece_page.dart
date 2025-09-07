@@ -25,6 +25,8 @@ class _PiecePageState extends State<PiecePage> {
   Timer? _metronomeTimer;
   bool _isPlayingMetronome = false;
   double _bpm = 200;
+  Stopwatch? _metronomeStopwatch;
+  int _tickCount = 0;
 
   // Auto-scroll
   final ScrollController _scrollController = ScrollController();
@@ -43,10 +45,12 @@ class _PiecePageState extends State<PiecePage> {
     _piece = widget.piece;
   }
 
+
   @override
   void dispose() {
     _metronomeTimer?.cancel();
     _scrollTimer?.cancel();
+    _metronomeStopwatch?.stop();
     for (final p in _players) {
       p.dispose();
     }
@@ -56,20 +60,45 @@ class _PiecePageState extends State<PiecePage> {
 
   void _toggleMetronome() {
     if (_isPlayingMetronome) {
-      _metronomeTimer?.cancel();
-      for (final p in _players) {
-        p.stop();
-      }
-      setState(() => _isPlayingMetronome = false);
+      _stopMetronome();
       return;
     }
     if (_bpm < 1) return; // 0 bpm = off
-    final interval = Duration(milliseconds: (60000 / _bpm).floor());
-    _metronomeTimer = Timer.periodic(interval, (_) {
-      _players[_playerIndex].play(AssetSource('click_sound.wav'));
-      _playerIndex = (_playerIndex + 1) % _players.length;
+    _startMetronome();
+  }
+
+  void _startMetronome() {
+    if (_bpm < 1) return;
+    
+    _metronomeStopwatch = Stopwatch()..start();
+    _tickCount = 0;
+    
+    // Use a moderate frequency timer (every 16ms ≈ 60fps) for smooth timing
+    _metronomeTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_isPlayingMetronome || _metronomeStopwatch == null) return;
+      
+      final elapsedMicroseconds = _metronomeStopwatch!.elapsedMicroseconds;
+      final intervalMicroseconds = (60000000 / _bpm).round();
+      final expectedTick = (elapsedMicroseconds / intervalMicroseconds).floor();
+      
+      // Play sound if we've reached a new expected tick
+      if (expectedTick > _tickCount) {
+        _tickCount = expectedTick;
+        _players[_playerIndex].play(AssetSource('click_sound.wav'));
+        _playerIndex = (_playerIndex + 1) % _players.length;
+      }
     });
+    
     setState(() => _isPlayingMetronome = true);
+  }
+
+  void _stopMetronome() {
+    _metronomeTimer?.cancel();
+    _metronomeStopwatch?.stop();
+    for (final p in _players) {
+      p.stop();
+    }
+    setState(() => _isPlayingMetronome = false);
   }
 
   void _toggleScroll() {
@@ -263,12 +292,8 @@ class _PiecePageState extends State<PiecePage> {
                 _bpm = value;
               });
               if (_isPlayingMetronome) {
-                _metronomeTimer?.cancel();
-                final interval = Duration(milliseconds: (60000 / _bpm).floor());
-                _metronomeTimer = Timer.periodic(interval, (_) {
-                  _players[_playerIndex].play(AssetSource('click_sound.wav'));
-                  _playerIndex = (_playerIndex + 1) % _players.length;
-                });
+                _stopMetronome();
+                _startMetronome();
               }
             },
             activeColor: Colors.grey[600],
@@ -426,7 +451,7 @@ class _PiecePageState extends State<PiecePage> {
                     const Padding(
                       padding: EdgeInsets.all(16),
                       child: Text(
-                        'No sheet images found for this work.',
+                        'No sheet images found for this Work.',
                         style: TextStyle(color: Colors.grey),
                       ),
                     ),
@@ -461,7 +486,7 @@ class _PiecePageState extends State<PiecePage> {
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Text(
-                        'Tap to show controls',
+                        'Tap to Show Controls',
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                     ),

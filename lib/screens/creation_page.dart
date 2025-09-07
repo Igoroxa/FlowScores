@@ -117,7 +117,7 @@ class _CreationPageState extends State<CreationPage> {
 
     if (name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a title for the piece.')),
+        const SnackBar(content: Text('Please enter a title for your Work.')),
       );
       return;
     }
@@ -262,6 +262,7 @@ class _CreationPageState extends State<CreationPage> {
     showModalBottomSheet(
       context: context,
       builder: (context) => Container(
+        color: Colors.white,
         padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -351,7 +352,11 @@ class _CreationPageState extends State<CreationPage> {
           if (_isConvertingPdf)
             Container(
               color: Colors.black38,
-              child: const Center(child: CircularProgressIndicator()),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                ),
+              ),
             ),
         ],
       ),
@@ -390,8 +395,9 @@ class _CreationPageState extends State<CreationPage> {
             const SizedBox(height: 8),
             TextField(
               controller: _nameController,
+              cursorColor: Colors.grey,
               decoration: InputDecoration(
-                hintText: 'Input',
+                hintText: 'Enter Here',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.grey[100],
@@ -431,6 +437,7 @@ class _CreationPageState extends State<CreationPage> {
             const SizedBox(height: 8),
             TextField(
               controller: _composerController,
+              cursorColor: Colors.grey,
               decoration: InputDecoration(
                 hintText: 'Input',
                 hintStyle: TextStyle(color: Colors.grey[400]),

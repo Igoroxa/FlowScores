@@ -10,7 +10,7 @@ class Piece {
   PieceType type;
   String? pdfPath;
   List<String>? imagePaths;
-  String? videoPath;  // path to an attached performance video file
+  String? videoPath;  
 
   Piece({
     required this.name,
@@ -23,5 +23,4 @@ class Piece {
     this.videoPath,
   });
 
-  // (We could add toJson/fromJson here if persisting pieces, but for now it's just an in-memory model.)
 }

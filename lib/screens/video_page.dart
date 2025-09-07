@@ -114,7 +114,7 @@ class _VideoPageState extends State<VideoPage> {
             // Loading
             return const Center(
               child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
               ),
             );
           }
