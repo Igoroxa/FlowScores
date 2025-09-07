@@ -18,7 +18,8 @@ dependencies:
   # Audio and video playback
   audioplayers: ^6.0.0
   video_player: ^2.10.0
-
+  image: ^4.0.17
+  
 dev_dependencies:
   flutter_test:
     sdk: flutter

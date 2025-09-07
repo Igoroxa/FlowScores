@@ -1,17 +1,16 @@
 import 'dart:async';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:file_picker/file_picker.dart'; // <-- fixes FilePickerResult undefined
 
 import '../models/piece.dart';
 import 'creation_page.dart';
 import 'video_page.dart';
+import 'pages_edit_page.dart';
 
 class PiecePage extends StatefulWidget {
   final Piece piece;
-  const PiecePage({Key? key, required this.piece}) : super(key: key);
+  const PiecePage({super.key, required this.piece});
 
   @override
   State<PiecePage> createState() => _PiecePageState();
@@ -64,7 +63,6 @@ class _PiecePageState extends State<PiecePage> {
       setState(() => _isPlayingMetronome = false);
       return;
     }
-
     if (_bpm < 1) return; // 0 bpm = off
     final interval = Duration(milliseconds: (60000 / _bpm).floor());
     _metronomeTimer = Timer.periodic(interval, (_) {
@@ -81,12 +79,9 @@ class _PiecePageState extends State<PiecePage> {
       return;
     }
     if (!_scrollController.hasClients || _scrollDurationSec < 1) return;
-
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (maxScroll <= 0) return;
-
     _scrollController.jumpTo(0); // start from top
-
     final speedPerSec = maxScroll / _scrollDurationSec; // px/s
     _scrollTimer = Timer.periodic(const Duration(milliseconds: 33), (t) {
       if (!_scrollController.hasClients) return;
@@ -116,9 +111,21 @@ class _PiecePageState extends State<PiecePage> {
   void _playVideo() {
     final path = _piece.videoPath;
     if (path == null) return;
-    Navigator.push(context, MaterialPageRoute(
-      builder: (_) => VideoPage(videoPath: path, pieceName: _piece.name),
-    ));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => VideoPage(videoPath: path, pieceName: _piece.name)),
+    );
+  }
+
+  // **New: Navigate to the page selection screen for cropping**
+  Future<void> _onCrop() async {
+    final updatedPiece = await Navigator.push<Piece?>(
+      context,
+      MaterialPageRoute(builder: (_) => PagesEditPage(piece: _piece)),
+    );
+    if (updatedPiece != null) {
+      setState(() => _piece = updatedPiece);
+    }
   }
 
   String _formatTime(double seconds) {
@@ -164,7 +171,6 @@ class _PiecePageState extends State<PiecePage> {
               ],
             ),
           ),
-
           // Expandable sections
           if (_showMetronome) _buildMetronomeSection(),
           if (_showAutoScroll) _buildAutoScrollSection(),
@@ -191,10 +197,7 @@ class _PiecePageState extends State<PiecePage> {
       ),
       child: Text(
         text,
-        style: const TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.w500,
-        ),
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
     );
   }
@@ -211,30 +214,23 @@ class _PiecePageState extends State<PiecePage> {
               IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.black),
                 onPressed: () {
-                  setState(() {
-                    _showMetronome = false;
-                  });
+                  setState(() => _showMetronome = false);
                 },
               ),
               const Expanded(
                 child: Text(
                   'Metronome',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.settings, color: Colors.black),
-                onPressed: () {},
+                onPressed: () {}, // (metronome settings placeholder)
               ),
             ],
           ),
           const SizedBox(height: 16),
-
           // Playback controls
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -246,11 +242,7 @@ class _PiecePageState extends State<PiecePage> {
               const SizedBox(width: 20),
               Text(
                 _bpm.round().toString(),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
               ),
               const SizedBox(width: 20),
               IconButton(
@@ -260,7 +252,6 @@ class _PiecePageState extends State<PiecePage> {
             ],
           ),
           const SizedBox(height: 20),
-
           // BPM Slider
           Slider(
             value: _bpm,
@@ -300,30 +291,23 @@ class _PiecePageState extends State<PiecePage> {
               IconButton(
                 icon: const Icon(Icons.arrow_back, color: Colors.black),
                 onPressed: () {
-                  setState(() {
-                    _showAutoScroll = false;
-                  });
+                  setState(() => _showAutoScroll = false);
                 },
               ),
               const Expanded(
                 child: Text(
                   'Auto Scroll',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
                 ),
               ),
               IconButton(
                 icon: const Icon(Icons.settings, color: Colors.black),
-                onPressed: () {},
+                onPressed: () {}, // (auto-scroll settings placeholder)
               ),
             ],
           ),
           const SizedBox(height: 16),
-
           // Playback controls
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -335,11 +319,7 @@ class _PiecePageState extends State<PiecePage> {
               const SizedBox(width: 20),
               Text(
                 _formatTime(_scrollDurationSec),
-                style: const TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+                style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.black),
               ),
               const SizedBox(width: 20),
               IconButton(
@@ -349,8 +329,7 @@ class _PiecePageState extends State<PiecePage> {
             ],
           ),
           const SizedBox(height: 20),
-
-          // Progress slider
+          // Duration slider
           Slider(
             value: _scrollDurationSec,
             min: 30,
@@ -382,11 +361,7 @@ class _PiecePageState extends State<PiecePage> {
         ),
         title: Text(
           _piece.name,
-          style: const TextStyle(
-            color: Colors.black,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
         ),
         centerTitle: true,
         actions: [
@@ -396,6 +371,26 @@ class _PiecePageState extends State<PiecePage> {
               onPressed: _playVideo,
               tooltip: 'Play Performance Video',
             ),
+          Container(
+            margin: const EdgeInsets.only(right: 8),
+            child: ElevatedButton.icon(
+              onPressed: _onCrop,
+              icon: const Icon(Icons.crop, color: Colors.white, size: 18),
+              label: const Text(
+                'Crop',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.black,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                elevation: 2,
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.settings, color: Colors.black),
             onPressed: _editPiece,
@@ -415,7 +410,7 @@ class _PiecePageState extends State<PiecePage> {
         },
         child: Stack(
           children: [
-            // Sheet music content
+            // Sheet music content (all pages images)
             SingleChildScrollView(
               controller: _scrollController,
               child: Column(
@@ -438,7 +433,6 @@ class _PiecePageState extends State<PiecePage> {
                 ],
               ),
             ),
-
             // Bottom controls overlay
             if (_showBottomControls)
               Positioned(
@@ -447,8 +441,7 @@ class _PiecePageState extends State<PiecePage> {
                 right: 0,
                 child: _buildBottomControls(),
               ),
-
-            // Tap to show controls
+            // Tap-to-show-controls hint
             if (!_showBottomControls)
               Positioned(
                 bottom: 20,
