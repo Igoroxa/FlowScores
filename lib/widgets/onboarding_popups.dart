@@ -5,7 +5,7 @@ class OnboardingPopups {
   static void showFirstAppLaunchPopup(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
@@ -16,6 +16,32 @@ class OnboardingPopups {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              // Header with X button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 24), // Spacer for centering
+                  const Text(
+                    'Welcome to FlowScores',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                      size: 24,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
               // FlowScores Logo
               Container(
                 width: 80,
@@ -32,18 +58,6 @@ class OnboardingPopups {
                 ),
               ),
               const SizedBox(height: 24),
-              
-              // Welcome text
-              const Text(
-                'Welcome to FlowScores',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
               
               // Features list
               const Column(
@@ -66,22 +80,15 @@ class OnboardingPopups {
               ),
               const SizedBox(height: 24),
               
-              // Next step
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[100],
-                  borderRadius: BorderRadius.circular(12),
+              // Next step (no gray background)
+              const Text(
+                'Next step: Create your first Work Profile',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
                 ),
-                child: const Text(
-                  'Next step: Create your first Work Profile',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               
@@ -119,7 +126,7 @@ class OnboardingPopups {
   static void showFirstWorkCreationPopup(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
@@ -130,15 +137,29 @@ class OnboardingPopups {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Title
-              const Text(
-                'Create Your Works',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
+              // Header with X button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 24), // Spacer for centering
+                  const Text(
+                    'Create Your Works',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                      size: 24,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
               
@@ -197,7 +218,7 @@ class OnboardingPopups {
   static void showFirstWorkOpenPopup(BuildContext context) {
     showDialog(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder: (context) => Dialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(
@@ -208,15 +229,31 @@ class OnboardingPopups {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Congratulations
-              const Text(
-                'Congratulations on Your First Work!',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-                textAlign: TextAlign.center,
+              // Header with X button
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const SizedBox(width: 24), // Spacer for centering
+                  const Expanded(
+                    child: Text(
+                      'Congratulations on Your First Work!',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(
+                      Icons.close,
+                      color: Colors.black,
+                      size: 24,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               

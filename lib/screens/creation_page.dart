@@ -79,6 +79,7 @@ class _CreationPageState extends State<CreationPage> {
   // ---------- Pickers ----------
 
   Future<void> _pickPdf() async {
+    FocusScope.of(context).unfocus();
     final FilePickerResult? res = await FilePicker.platform.pickFiles(
       type: FileType.custom,
       allowedExtensions: ['pdf'],
@@ -108,6 +109,7 @@ class _CreationPageState extends State<CreationPage> {
   }
 
   void _startGalleryMode() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _isInGalleryMode = true;
       _type = PieceType.image;
@@ -117,6 +119,7 @@ class _CreationPageState extends State<CreationPage> {
   }
 
   void _finishGalleryMode() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _isInGalleryMode = false;
     });
@@ -135,6 +138,7 @@ class _CreationPageState extends State<CreationPage> {
   }
 
   void _startCameraMode() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _isInCameraMode = true;
       _type = PieceType.image;
@@ -144,12 +148,14 @@ class _CreationPageState extends State<CreationPage> {
   }
 
   void _finishCameraMode() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _isInCameraMode = false;
     });
   }
 
   void _removeImage(int index) {
+    FocusScope.of(context).unfocus();
     setState(() {
       _imagePaths.removeAt(index);
       if (_imagePaths.isEmpty) {
@@ -161,6 +167,7 @@ class _CreationPageState extends State<CreationPage> {
   }
 
   Future<void> _pickVideo() async {
+    FocusScope.of(context).unfocus();
     final FilePickerResult? res =
         await FilePicker.platform.pickFiles(type: FileType.video);
     if (res != null && res.files.isNotEmpty) {
@@ -471,6 +478,7 @@ class _CreationPageState extends State<CreationPage> {
             TextField(
               controller: _nameController,
               cursorColor: Colors.grey,
+              textInputAction: TextInputAction.next,
               decoration: InputDecoration(
                 hintText: 'Enter Here',
                 hintStyle: TextStyle(color: Colors.grey[400]),
@@ -485,6 +493,7 @@ class _CreationPageState extends State<CreationPage> {
                     ? IconButton(
                         icon: const Icon(Icons.cancel, color: Colors.grey),
                         onPressed: () {
+                          FocusScope.of(context).unfocus();
                           _nameController.clear();
                           setState(() {});
                         },
@@ -492,6 +501,9 @@ class _CreationPageState extends State<CreationPage> {
                     : null,
               ),
               onChanged: (value) => setState(() {}),
+              onSubmitted: (value) {
+                FocusScope.of(context).unfocus();
+              },
             ),
           ],
         ),
@@ -513,6 +525,7 @@ class _CreationPageState extends State<CreationPage> {
             TextField(
               controller: _composerController,
               cursorColor: Colors.grey,
+              textInputAction: TextInputAction.done,
               decoration: InputDecoration(
                 hintText: 'Enter Here',
                 hintStyle: TextStyle(color: Colors.grey[400]),
@@ -527,6 +540,7 @@ class _CreationPageState extends State<CreationPage> {
                     ? IconButton(
                         icon: const Icon(Icons.cancel, color: Colors.grey),
                         onPressed: () {
+                          FocusScope.of(context).unfocus();
                           _composerController.clear();
                           setState(() {});
                         },
@@ -534,6 +548,9 @@ class _CreationPageState extends State<CreationPage> {
                     : null,
               ),
               onChanged: (value) => setState(() {}),
+              onSubmitted: (value) {
+                FocusScope.of(context).unfocus();
+              },
             ),
           ],
         ),
@@ -547,7 +564,10 @@ class _CreationPageState extends State<CreationPage> {
               child: Container(
                 margin: const EdgeInsets.only(right: 8),
                 child: ElevatedButton(
-                  onPressed: () => setState(() => _selectedDifficulty = difficulty),
+                  onPressed: () {
+                    FocusScope.of(context).unfocus();
+                    setState(() => _selectedDifficulty = difficulty);
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white,
                     foregroundColor: Colors.black,
@@ -583,7 +603,10 @@ class _CreationPageState extends State<CreationPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _showUploadOptions,
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  _showUploadOptions();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -839,7 +862,10 @@ class _CreationPageState extends State<CreationPage> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _pickVideo,
+                onPressed: () {
+                  FocusScope.of(context).unfocus();
+                  _pickVideo();
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.black,
                   foregroundColor: Colors.white,
@@ -912,7 +938,10 @@ class _CreationPageState extends State<CreationPage> {
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _isConvertingPdf ? null : _onSave,
+            onPressed: _isConvertingPdf ? null : () {
+              FocusScope.of(context).unfocus();
+              _onSave();
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.black,
               foregroundColor: Colors.white,
