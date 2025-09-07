@@ -4,6 +4,8 @@ import 'package:image_picker/image_picker.dart';
 import '../models/piece.dart';
 import 'creation_page.dart';
 import 'piece_page.dart';
+import '../services/onboarding_service.dart';
+import '../widgets/onboarding_popups.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({Key? key}) : super(key: key);
@@ -31,6 +33,25 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Dismiss keyboard when home page becomes visible
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FocusScope.of(context).unfocus();
+      // Show first app launch popup if needed
+      _checkAndShowFirstAppLaunchPopup();
+    });
+  }
+
+  Future<void> _checkAndShowFirstAppLaunchPopup() async {
+    final shouldShow = await OnboardingService.shouldShowFirstAppLaunch();
+    if (shouldShow && mounted) {
+      OnboardingPopups.showFirstAppLaunchPopup(context);
+      await OnboardingService.markFirstAppLaunchShown();
+    }
+  }
+
+  @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
@@ -51,6 +72,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
 
   // Navigate to the creation page to add a new piece
   void _onAddNewWork() async {
+    // Dismiss keyboard before navigating
+    FocusScope.of(context).unfocus();
     Piece? newPiece = await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => CreationPage()),  // no initial file, user will choose inside
@@ -145,37 +168,43 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Search field at top
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              cursorColor: Colors.grey,
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, color: Colors.grey),
-                hintText: 'Search',
-                hintStyle: TextStyle(color: Colors.grey[400]),
-                filled: true,
-                fillColor: Colors.grey[100],
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(25),
-                  borderSide: BorderSide.none,
+      body: GestureDetector(
+        onTap: () {
+          // Dismiss keyboard when tapping outside text fields
+          FocusScope.of(context).unfocus();
+        },
+        child: Column(
+          children: [
+            // Search field at top
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: TextField(
+                cursorColor: Colors.grey,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(Icons.search, color: Colors.grey),
+                  hintText: 'Search',
+                  hintStyle: TextStyle(color: Colors.grey[400]),
+                  filled: true,
+                  fillColor: Colors.grey[100],
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(25),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                 ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                onChanged: (value) {
+                  setState(() {
+                    _searchQuery = value;
+                  });
+                },
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
             ),
-          ),
-          // Piece list (within Expanded)
-          Expanded(
-            child: hasPieces ? _buildPieceList() : _buildEmptyState(),
-          ),
-        ],
+            // Piece list (within Expanded)
+            Expanded(
+              child: hasPieces ? _buildPieceList() : _buildEmptyState(),
+            ),
+          ],
+        ),
       ),
       floatingActionButton: Container(
         width: double.infinity,
@@ -293,6 +322,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 color: Colors.white,
               ),
               onTap: () async {
+                // Dismiss keyboard before navigating
+                FocusScope.of(context).unfocus();
                 // Open piece view
                 await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
                 // After returning, if difficulty or progress may have changed, sort list

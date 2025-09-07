@@ -22,6 +22,8 @@ dependencies:
   image: ^4.0.17
   # File system access
   path_provider: ^2.1.2
+  # Shared preferences for onboarding state
+  shared_preferences: ^2.2.2
   
 dev_dependencies:
   flutter_test:

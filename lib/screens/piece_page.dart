@@ -7,6 +7,8 @@ import '../models/piece.dart';
 import 'creation_page.dart';
 import 'video_page.dart';
 import 'pages_edit_page.dart';
+import '../services/onboarding_service.dart';
+import '../widgets/onboarding_popups.dart';
 
 class PiecePage extends StatefulWidget {
   final Piece piece;
@@ -42,6 +44,18 @@ class _PiecePageState extends State<PiecePage> {
     super.initState();
     _piece = widget.piece;
     _preloadMetronomeAudio();
+    // Show first work open popup if needed
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAndShowFirstWorkOpenPopup();
+    });
+  }
+
+  Future<void> _checkAndShowFirstWorkOpenPopup() async {
+    final shouldShow = await OnboardingService.shouldShowFirstWorkOpen();
+    if (shouldShow && mounted) {
+      OnboardingPopups.showFirstWorkOpenPopup(context);
+      await OnboardingService.markFirstWorkOpenShown();
+    }
   }
 
   Future<void> _preloadMetronomeAudio() async {

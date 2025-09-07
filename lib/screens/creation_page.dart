@@ -9,6 +9,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf_image_renderer/pdf_image_renderer.dart';
 
 import '../models/piece.dart';
+import '../services/onboarding_service.dart';
+import '../widgets/onboarding_popups.dart';
 
 class CreationPage extends StatefulWidget {
   final Piece? piece; // null => creating new; non-null => editing
@@ -31,6 +33,8 @@ class _CreationPageState extends State<CreationPage> {
   String? _videoPath;
 
   bool _isConvertingPdf = false;
+  bool _isInCameraMode = false;  // Track if user is capturing multiple images
+  bool _isInGalleryMode = false; // Track if user is selecting multiple images from gallery
 
   final ImagePicker _imagePicker = ImagePicker();
 
@@ -50,6 +54,18 @@ class _CreationPageState extends State<CreationPage> {
     } else {
       _nameController = TextEditingController();
       _composerController = TextEditingController();
+      // Show first work creation popup if needed (only for new pieces, not editing)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndShowFirstWorkCreationPopup();
+      });
+    }
+  }
+
+  Future<void> _checkAndShowFirstWorkCreationPopup() async {
+    final shouldShow = await OnboardingService.shouldShowFirstWorkCreation();
+    if (shouldShow && mounted) {
+      OnboardingPopups.showFirstWorkCreationPopup(context);
+      await OnboardingService.markFirstWorkCreationShown();
     }
   }
 
@@ -86,8 +102,24 @@ class _CreationPageState extends State<CreationPage> {
         _type = PieceType.image;
         _imagePaths = res.files.map((f) => f.path!).toList();
         _pdfPath = null;
+        _isInGalleryMode = true;  // Enter gallery mode for multiple selections
       });
     }
+  }
+
+  void _startGalleryMode() {
+    setState(() {
+      _isInGalleryMode = true;
+      _type = PieceType.image;
+      _imagePaths.clear();
+      _pdfPath = null;
+    });
+  }
+
+  void _finishGalleryMode() {
+    setState(() {
+      _isInGalleryMode = false;
+    });
   }
 
   Future<void> _captureImage() async {
@@ -95,10 +127,37 @@ class _CreationPageState extends State<CreationPage> {
     if (photo != null) {
       setState(() {
         _type = PieceType.image;
-        _imagePaths = [photo.path];
+        _imagePaths.add(photo.path);
         _pdfPath = null;
+        _isInCameraMode = true;  // Enter camera mode for multiple captures
       });
     }
+  }
+
+  void _startCameraMode() {
+    setState(() {
+      _isInCameraMode = true;
+      _type = PieceType.image;
+      _imagePaths.clear();
+      _pdfPath = null;
+    });
+  }
+
+  void _finishCameraMode() {
+    setState(() {
+      _isInCameraMode = false;
+    });
+  }
+
+  void _removeImage(int index) {
+    setState(() {
+      _imagePaths.removeAt(index);
+      if (_imagePaths.isEmpty) {
+        _isInCameraMode = false;
+        _isInGalleryMode = false;
+        _type = null;
+      }
+    });
   }
 
   Future<void> _pickVideo() async {
@@ -137,6 +196,7 @@ class _CreationPageState extends State<CreationPage> {
       p.progress = _selectedProgress;
       p.videoPath = _videoPath;
       // (Changing sheet files on edit is intentionally not supported.)
+      FocusScope.of(context).unfocus();
       Navigator.pop(context, p);
       return;
     }
@@ -207,6 +267,7 @@ class _CreationPageState extends State<CreationPage> {
       videoPath: _videoPath,
     );
 
+    FocusScope.of(context).unfocus();
     Navigator.pop(context, newPiece);
   }
 
@@ -220,7 +281,11 @@ class _CreationPageState extends State<CreationPage> {
     if (_type == PieceType.pdf && _pdfPath != null) {
       return _pdfPath!.split('/').last;
     } else if (_type == PieceType.image && _imagePaths.isNotEmpty) {
-      return _imagePaths.first.split('/').last;
+      if (_imagePaths.length == 1) {
+        return _imagePaths.first.split('/').last;
+      } else {
+        return '${_imagePaths.length} images';
+      }
     }
     return '';
   }
@@ -331,7 +396,11 @@ class _CreationPageState extends State<CreationPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () {
+            // Dismiss keyboard before navigating back
+            FocusScope.of(context).unfocus();
+            Navigator.pop(context);
+          },
         ),
         title: const Text(
           'Work Creation',
@@ -343,22 +412,28 @@ class _CreationPageState extends State<CreationPage> {
         ),
         centerTitle: true,
       ),
-      body: Stack(
-        children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: _buildFormFields(isEdit),
-          ),
-          if (_isConvertingPdf)
-            Container(
-              color: Colors.black38,
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+      body: GestureDetector(
+        onTap: () {
+          // Dismiss keyboard when tapping outside text fields
+          FocusScope.of(context).unfocus();
+        },
+        child: Stack(
+          children: [
+            SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: _buildFormFields(isEdit),
+            ),
+            if (_isConvertingPdf)
+              Container(
+                color: Colors.black38,
+                child: const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -439,7 +514,7 @@ class _CreationPageState extends State<CreationPage> {
               controller: _composerController,
               cursorColor: Colors.grey,
               decoration: InputDecoration(
-                hintText: 'Input',
+                hintText: 'Enter Here',
                 hintStyle: TextStyle(color: Colors.grey[400]),
                 filled: true,
                 fillColor: Colors.grey[100],
@@ -537,72 +612,219 @@ class _CreationPageState extends State<CreationPage> {
             const SizedBox(height: 12),
             
             // Upload Options (PDF, Camera, Gallery)
-            Row(
-              children: [
-                Expanded(
-                  child: _buildUploadOptionButton(
-                    icon: Icons.star,
-                    label: 'PDF',
-                    onPressed: _pickPdf,
+            if (!_isInCameraMode && !_isInGalleryMode) ...[
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.picture_as_pdf,
+                      label: 'PDF',
+                      onPressed: _pickPdf,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildUploadOptionButton(
-                    icon: Icons.star,
-                    label: 'Camera',
-                    onPressed: _captureImage,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.camera_alt,
+                      label: 'Camera',
+                      onPressed: _startCameraMode,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildUploadOptionButton(
-                    icon: Icons.star,
-                    label: 'Gallery',
-                    onPressed: _pickImagesFromGallery,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.photo_library,
+                      label: 'Gallery',
+                      onPressed: _startGalleryMode,
+                    ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
+            ] else if (_isInCameraMode) ...[
+              // Camera mode - show capture and done buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.camera_alt,
+                      label: 'Take Photo',
+                      onPressed: _captureImage,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.check,
+                      label: 'Done',
+                      onPressed: _finishCameraMode,
+                    ),
+                  ),
+                ],
+              ),
+            ] else if (_isInGalleryMode) ...[
+              // Gallery mode - show select more and done buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.photo_library,
+                      label: 'Select More',
+                      onPressed: _pickImagesFromGallery,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildUploadOptionButton(
+                      icon: Icons.check,
+                      label: 'Done',
+                      onPressed: _finishGalleryMode,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             
             // Show uploaded file info
             if (_type != null) ...[
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Uploaded: ${_getUploadedFileName()}',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.black,
+              if (_type == PieceType.pdf) ...[
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Uploaded: ${_getUploadedFileName()}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                          ),
                         ),
                       ),
-                    ),
-                    GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _type = null;
-                          _pdfPath = null;
-                          _imagePaths.clear();
-                        });
-                      },
-                      child: const Icon(
-                        Icons.close,
-                        color: Colors.grey,
-                        size: 20,
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _type = null;
+                            _pdfPath = null;
+                            _imagePaths.clear();
+                            _isInCameraMode = false;
+                            _isInGalleryMode = false;
+                          });
+                        },
+                        child: const Icon(
+                          Icons.close,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ] else if (_type == PieceType.image && _imagePaths.isNotEmpty) ...[
+                // Show image previews
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey[200]!),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            _isInCameraMode 
+                                ? 'Captured Images (${_imagePaths.length})'
+                                : _isInGalleryMode
+                                    ? 'Selected Images (${_imagePaths.length})'
+                                    : 'Images (${_imagePaths.length})',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              color: Colors.black,
+                            ),
+                          ),
+                          const Spacer(),
+                          if (!_isInCameraMode && !_isInGalleryMode)
+                            GestureDetector(
+                              onTap: () {
+                                setState(() {
+                                  _type = null;
+                                  _imagePaths.clear();
+                                  _isInCameraMode = false;
+                                  _isInGalleryMode = false;
+                                });
+                              },
+                              child: const Icon(
+                                Icons.close,
+                                color: Colors.grey,
+                                size: 20,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      // Image grid
+                      GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 3,
+                          crossAxisSpacing: 8,
+                          mainAxisSpacing: 8,
+                          childAspectRatio: 1,
+                        ),
+                        itemCount: _imagePaths.length,
+                        itemBuilder: (context, index) {
+                          return Stack(
+                            children: [
+                              Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.grey[300]!),
+                                ),
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.file(
+                                    File(_imagePaths[index]),
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                              ),
+                              Positioned(
+                                top: 4,
+                                right: 4,
+                                child: GestureDetector(
+                                  onTap: () => _removeImage(index),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: const BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.close,
+                                      color: Colors.white,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ],
         ),
