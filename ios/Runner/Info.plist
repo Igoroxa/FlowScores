@@ -45,5 +45,17 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!-- Privacy permissions for camera and photo library access -->
+	<key>NSCameraUsageDescription</key>
+	<string>This app needs access to camera to capture sheet music photos.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>This app needs access to photo library to import sheet music images and videos.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>This app needs access to microphone for audio recording features.</string>
+	<!-- File access permissions -->
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>This app needs access to documents to save and load sheet music files.</string>
+	<key>NSDownloadsFolderUsageDescription</key>
+	<string>This app needs access to downloads to import sheet music files.</string>
 </dict>
 </plist>

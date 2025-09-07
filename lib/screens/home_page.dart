@@ -95,11 +95,32 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Padding(
-          padding: EdgeInsets.only(left: 16),
-          child: Text(
-            'FlowScores',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+        title: Padding(
+          padding: const EdgeInsets.only(left: 16),
+          child: Row(
+            children: [
+              // Logo
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Colors.white,
+                ),
+                child: ClipOval(
+                  child: Image.asset(
+                    'assets/FlowScores_Logo.png',
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              // App name
+              const Text(
+                'FlowScores',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+              ),
+            ],
           ),
         ),
         bottom: PreferredSize(
