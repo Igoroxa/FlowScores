@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 import '../models/piece.dart';
 import 'creation_page.dart';
@@ -20,13 +20,11 @@ class _PiecePageState extends State<PiecePage> {
   late Piece _piece;
 
   // Metronome
-  final List<AudioPlayer> _players = List.generate(4, (_) => AudioPlayer());
+  final List<AudioPlayer> _metronomePlayers = List.generate(4, (_) => AudioPlayer());
   int _playerIndex = 0;
   Timer? _metronomeTimer;
   bool _isPlayingMetronome = false;
   double _bpm = 200;
-  Stopwatch? _metronomeStopwatch;
-  int _tickCount = 0;
 
   // Auto-scroll
   final ScrollController _scrollController = ScrollController();
@@ -43,6 +41,18 @@ class _PiecePageState extends State<PiecePage> {
   void initState() {
     super.initState();
     _piece = widget.piece;
+    _preloadMetronomeAudio();
+  }
+
+  Future<void> _preloadMetronomeAudio() async {
+    // Preload the click sound to all metronome players for instant playback
+    for (final player in _metronomePlayers) {
+      try {
+        await player.setAsset('assets/click_sound.wav');
+      } catch (e) {
+        // Handle error silently
+      }
+    }
   }
 
 
@@ -50,8 +60,7 @@ class _PiecePageState extends State<PiecePage> {
   void dispose() {
     _metronomeTimer?.cancel();
     _scrollTimer?.cancel();
-    _metronomeStopwatch?.stop();
-    for (final p in _players) {
+    for (final p in _metronomePlayers) {
       p.dispose();
     }
     _scrollController.dispose();
@@ -70,32 +79,28 @@ class _PiecePageState extends State<PiecePage> {
   void _startMetronome() {
     if (_bpm < 1) return;
     
-    _metronomeStopwatch = Stopwatch()..start();
-    _tickCount = 0;
+    // Calculate the exact interval in milliseconds
+    final intervalMs = (60000 / _bpm).round();
     
-    // Use a moderate frequency timer (every 16ms ≈ 60fps) for smooth timing
-    _metronomeTimer = Timer.periodic(const Duration(milliseconds: 16), (_) {
-      if (!_isPlayingMetronome || _metronomeStopwatch == null) return;
-      
-      final elapsedMicroseconds = _metronomeStopwatch!.elapsedMicroseconds;
-      final intervalMicroseconds = (60000000 / _bpm).round();
-      final expectedTick = (elapsedMicroseconds / intervalMicroseconds).floor();
-      
-      // Play sound if we've reached a new expected tick
-      if (expectedTick > _tickCount) {
-        _tickCount = expectedTick;
-        _players[_playerIndex].play(AssetSource('click_sound.wav'));
-        _playerIndex = (_playerIndex + 1) % _players.length;
-      }
+    // Use a timer that fires at the exact BPM interval
+    _metronomeTimer = Timer.periodic(Duration(milliseconds: intervalMs), (_) {
+      if (!_isPlayingMetronome) return;
+      _playMetronomeClick();
     });
     
     setState(() => _isPlayingMetronome = true);
   }
 
+  void _playMetronomeClick() {
+    // Use just_audio for better timing and performance
+    _metronomePlayers[_playerIndex].seek(Duration.zero);
+    _metronomePlayers[_playerIndex].play();
+    _playerIndex = (_playerIndex + 1) % _metronomePlayers.length;
+  }
+
   void _stopMetronome() {
     _metronomeTimer?.cancel();
-    _metronomeStopwatch?.stop();
-    for (final p in _players) {
+    for (final p in _metronomePlayers) {
       p.stop();
     }
     setState(() => _isPlayingMetronome = false);
@@ -285,8 +290,8 @@ class _PiecePageState extends State<PiecePage> {
           Slider(
             value: _bpm,
             min: 30,
-            max: 350,
-            divisions: 320,
+            max: 500,
+            divisions: 470,
             onChanged: (value) {
               setState(() {
                 _bpm = value;

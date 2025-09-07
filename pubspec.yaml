@@ -17,6 +17,7 @@ dependencies:
   pdf_image_renderer: ^1.0.1
   # Audio and video playback
   audioplayers: ^6.0.0
+  just_audio: ^0.9.36
   video_player: ^2.10.0
   image: ^4.0.17
   
