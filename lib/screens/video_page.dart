@@ -64,9 +64,12 @@ class _VideoPageState extends State<VideoPage> {
             // Video initialized
             return Stack(
               children: [
-                // Video player
-                Positioned.fill(
-                  child: VideoPlayer(_videoController),
+                // Video player with aspect ratio preserved
+                Center(
+                  child: AspectRatio(
+                    aspectRatio: _videoController.value.aspectRatio,
+                    child: VideoPlayer(_videoController),
+                  ),
                 ),
                 
                 // Bottom play button

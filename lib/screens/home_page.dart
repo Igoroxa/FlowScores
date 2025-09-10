@@ -103,12 +103,6 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
     }
   }
 
-  // Remove a piece from the list (used for swipe-to-delete)
-  void _deletePiece(int index) {
-    setState(() {
-      _pieces.removeAt(index);
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -275,57 +269,55 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final piece = filtered[index];
-        return Dismissible(
-          key: ValueKey(piece.name + piece.difficulty + (piece.pdfPath ?? piece.imagePaths.toString())),
-          direction: DismissDirection.endToStart,
-          onDismissed: (_) => _deletePiece(_pieces.indexOf(piece)),
-          background: Container(
-            color: Colors.red, 
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: const Icon(Icons.delete, color: Colors.white),
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-          child: Container(
-            margin: const EdgeInsets.symmetric(vertical: 6),
-            decoration: BoxDecoration(
-              color: Colors.black,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              title: Text(
-                piece.name,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              subtitle: Text(
-                (piece.composer != null && piece.composer!.isNotEmpty)
-                  ? '${piece.composer} • ${piece.difficulty}'
-                  : piece.difficulty,
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
-                  fontSize: 14,
-                ),
-              ),
-              trailing: Icon(
-                piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            title: Text(
+              piece.name,
+              style: const TextStyle(
                 color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
               ),
-              onTap: () async {
-                // Dismiss keyboard before navigating
-                FocusScope.of(context).unfocus();
-                // Open piece view
-                await Navigator.push(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
+            ),
+            subtitle: Text(
+              (piece.composer != null && piece.composer!.isNotEmpty)
+                ? '${piece.composer} • ${piece.difficulty}'
+                : piece.difficulty,
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 14,
+              ),
+            ),
+            trailing: Icon(
+              piece.type == PieceType.pdf ? Icons.picture_as_pdf : Icons.image,
+              color: Colors.white,
+            ),
+            onTap: () async {
+              // Dismiss keyboard before navigating
+              FocusScope.of(context).unfocus();
+              // Open piece view
+              final result = await Navigator.push<Piece?>(context, MaterialPageRoute(builder: (_) => PiecePage(piece: piece)));
+              
+              // Check if the piece was deleted
+              if (result != null) {
+                // Piece was deleted, remove it from the list
+                setState(() {
+                  _pieces.removeWhere((p) => p.name == result.name && p.difficulty == result.difficulty);
+                });
+              } else {
                 // After returning, if difficulty or progress may have changed, sort list
                 setState(() {
                   _pieces.sort((a, b) {
@@ -335,8 +327,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
                   });
                 });
-              },
-            ),
+              }
+            },
           ),
         );
       },
