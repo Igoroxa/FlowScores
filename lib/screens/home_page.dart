@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
-import 'package:image_picker/image_picker.dart';
 import '../models/piece.dart';
 import 'creation_page.dart';
 import 'piece_page.dart';
 import '../services/onboarding_service.dart';
+import '../services/piece_storage_service.dart';
 import '../widgets/onboarding_popups.dart';
 
 class HomePage extends StatefulWidget {
@@ -16,7 +15,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   final List<Piece> _pieces = [];         // list of pieces added
-  final ImagePicker _imagePicker = ImagePicker();
   String _searchQuery = "";               // current search text for filtering
   late TabController _tabController;      // controller for difficulty filter tabs
   final List<String> _difficulties = ['Beginner', 'Intermediate', 'Advanced'];
@@ -30,6 +28,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
         // refresh list when tab changes
       });
     });
+    // Load saved pieces when the page initializes
+    _loadPieces();
   }
 
   @override
@@ -90,6 +90,37 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
           return a.name.toLowerCase().compareTo(b.name.toLowerCase());
         });
       });
+      // Save pieces after adding a new one
+      await _savePieces();
+    }
+  }
+
+  // Load pieces from local storage
+  Future<void> _loadPieces() async {
+    try {
+      final savedPieces = await PieceStorageService.loadPieces();
+      setState(() {
+        _pieces.clear();
+        _pieces.addAll(savedPieces);
+        // Sort pieces after loading
+        _pieces.sort((a, b) {
+          if (a.difficulty != b.difficulty) {
+            return _difficultyRank(a.difficulty).compareTo(_difficultyRank(b.difficulty));
+          }
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        });
+      });
+    } catch (e) {
+      print('Error loading pieces: $e');
+    }
+  }
+
+  // Save pieces to local storage
+  Future<void> _savePieces() async {
+    try {
+      await PieceStorageService.savePieces(_pieces);
+    } catch (e) {
+      print('Error saving pieces: $e');
     }
   }
 
@@ -317,6 +348,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                 setState(() {
                   _pieces.removeWhere((p) => p.name == result.name && p.difficulty == result.difficulty);
                 });
+                // Save pieces after deletion
+                await _savePieces();
               } else {
                 // After returning, if difficulty or progress may have changed, sort list
                 setState(() {
@@ -327,6 +360,8 @@ class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin
                     return a.name.toLowerCase().compareTo(b.name.toLowerCase());
                   });
                 });
+                // Save pieces after any potential updates
+                await _savePieces();
               }
             },
           ),
